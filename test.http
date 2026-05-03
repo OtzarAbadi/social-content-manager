@@ -1,0 +1,29 @@
+PUT http://localhost:8080/contents/1/status?status=APPROVED
+###
+
+POST http://localhost:8080/contents
+Content-Type: application/json
+{
+  "clientId": 1,
+  "title": "פוסט חדש",
+  "description": "בדיקה של המערכת",
+  "file_url": "https://test.com/post.jpg",
+  "content_type": "IMAGE"
+}
+###
+
+GET http://localhost:8080/contents
+###
+PUT http://localhost:8080/contents/4/status?status=WAITING_APPROVAL
+###
+PUT http://localhost:8080/contents/4/status?status=APPROVED
+###
+POST http://localhost:8080/comments
+Content-Type: application/json
+{
+  "contentId": 1,
+  "userId": 1,
+  "text": "תשני את הכותרת"
+}
+###
+GET http://localhost:8080/comments/by-content?contentId=1
