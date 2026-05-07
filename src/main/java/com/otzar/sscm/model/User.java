@@ -1,13 +1,7 @@
 package com.otzar.sscm.model;
 
-import jakarta.persistence.*;
-
-@Entity
-@Table(name = "users")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long user_id;
 
     private String full_name;

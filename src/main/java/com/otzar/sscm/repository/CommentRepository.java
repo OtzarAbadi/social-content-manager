@@ -1,14 +1,32 @@
 package com.otzar.sscm.repository;
 
 import com.otzar.sscm.model.Comment;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import com.otzar.sscm.service.Persist;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-public interface CommentRepository extends JpaRepository<Comment, Long> {
+@Repository
+@Transactional
+public class CommentRepository {
 
-    @Query("SELECT c FROM Comment c WHERE c.contentId = :contentId")
-    List<Comment> getCommentsByContentId(@Param("contentId") Long contentId);
+    private final Persist persist;
+
+    public CommentRepository(Persist persist) {
+        this.persist = persist;
+    }
+
+    public Comment save(Comment comment) {
+        persist.save(comment);
+        return comment;
+    }
+
+    public List<Comment> findAll() {
+        return persist.loadList(Comment.class);
+    }
+
+    public List<Comment> getCommentsByContentId(Long contentId) {
+        return persist.loadListByParameter("FROM Comment WHERE contentId = :contentId", "contentId", contentId, Comment.class);
+    }
 }

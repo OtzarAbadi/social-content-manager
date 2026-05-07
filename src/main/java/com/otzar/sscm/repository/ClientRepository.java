@@ -1,7 +1,21 @@
 package com.otzar.sscm.repository;
 
 import com.otzar.sscm.model.Client;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.otzar.sscm.service.Persist;
+import org.springframework.stereotype.Repository;
 
-public interface ClientRepository extends JpaRepository<Client, Long> {
+import java.util.List;
+
+@Repository
+public class ClientRepository {
+
+    private final Persist persist;
+
+    public ClientRepository(Persist persist) {
+        this.persist = persist;
+    }
+
+    public List<Client> findAll() {
+        return persist.loadList(Client.class);
+    }
 }

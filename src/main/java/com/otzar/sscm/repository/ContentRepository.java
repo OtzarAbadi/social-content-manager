@@ -1,11 +1,37 @@
 package com.otzar.sscm.repository;
 
 import com.otzar.sscm.model.Content;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.otzar.sscm.service.Persist;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface ContentRepository extends JpaRepository<Content, Long> {
+@Repository
+@Transactional
+public class ContentRepository {
 
-    List<Content> findByClientId(Long clientId);
+    private final Persist persist;
+
+    public ContentRepository(Persist persist) {
+        this.persist = persist;
+    }
+
+    public List<Content> findAll() {
+        return persist.loadList(Content.class);
+    }
+
+    public List<Content> findByClientId(Long clientId) {
+        return persist.loadListByParameter("FROM Content WHERE clientId = :clientId", "clientId", clientId, Content.class);
+    }
+
+    public Optional<Content> findById(Long contentId) {
+        return Optional.ofNullable(persist.loadObject(Content.class, contentId));
+    }
+
+    public Content save(Content content) {
+        persist.save(content);
+        return content;
+    }
 }
