@@ -23,7 +23,7 @@ import static com.otzar.sscm.utils.Constants.DB_USERNAME;
 import static com.otzar.sscm.utils.Constants.SCHEMA;
 
 @Configuration
-@Profile("production")
+@Profile({"default", "production"})
 public class AppConfig {
 
     private final Environment env;
