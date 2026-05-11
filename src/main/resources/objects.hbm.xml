@@ -2,47 +2,25 @@
 <!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
         "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
 <hibernate-mapping>
-    <class name="com.otzar.sscm.model.User" table="users">
-        <id name="user_id" column="user_id" type="long">
+    <class name="com.otzar.sscm.model.SocialManagerEntity" table="social_managers">
+        <id name="id" column="id" type="long">
             <generator class="identity"/>
         </id>
-        <property name="full_name" column="full_name" type="string" not-null="true"/>
+        <property name="fullName" column="full_name" type="string" not-null="true"/>
+        <property name="username" column="username" type="string" not-null="true"/>
         <property name="email" column="email" type="string" not-null="true"/>
     </class>
 
-    <class name="com.otzar.sscm.model.Client" table="clients">
-        <id name="client_id" column="client_id" type="long">
+    <class name="com.otzar.sscm.model.ClientEntity" table="clients">
+        <id name="id" column="id" type="long">
             <generator class="identity"/>
         </id>
-        <property name="user_id" column="user_id" type="long" not-null="true"/>
-        <property name="admin_id" column="admin_id" type="long"/>
-        <property name="business_name" column="business_name" type="string" not-null="true"/>
+        <many-to-one
+                name="socialManagerEntity"
+                column="social_manager_id"
+                class="com.otzar.sscm.model.SocialManagerEntity" />
+        <property name="businessName" column="business_name" type="string" not-null="true"/>
         <property name="phone" column="phone" type="string"/>
     </class>
 
-    <class name="com.otzar.sscm.model.Content" table="contents">
-        <id name="content_id" column="content_id" type="long">
-            <generator class="identity"/>
-        </id>
-        <property name="clientId" column="client_id" type="long" not-null="true"/>
-        <property name="title" column="title" type="string" not-null="true"/>
-        <property name="description" column="description" type="text"/>
-        <property name="file_url" column="file_url" type="string"/>
-        <property name="content_type" column="content_type" type="string"/>
-        <property name="status" column="status" not-null="true">
-            <type name="org.hibernate.type.EnumType">
-                <param name="enumClass">com.otzar.sscm.model.ContentStatus</param>
-                <param name="useNamed">true</param>
-            </type>
-        </property>
-    </class>
-
-    <class name="com.otzar.sscm.model.Comment" table="comments">
-        <id name="commentId" column="comment_id" type="long">
-            <generator class="identity"/>
-        </id>
-        <property name="contentId" column="content_id" type="long"/>
-        <property name="userId" column="user_id" type="long"/>
-        <property name="commentText" column="comment_text" type="text"/>
-    </class>
 </hibernate-mapping>

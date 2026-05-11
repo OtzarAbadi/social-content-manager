@@ -1,6 +1,6 @@
 package com.otzar.sscm.controller;
 
-import com.otzar.sscm.model.User;
+import com.otzar.sscm.model.SocialManagerEntity;
 import com.otzar.sscm.repository.UserRepository;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +17,7 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
+    public List<SocialManagerEntity> getAllUsers() {
         return userRepository.findAll();
     }
 }

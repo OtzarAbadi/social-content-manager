@@ -1,6 +1,6 @@
 package com.otzar.sscm.controller;
 
-import com.otzar.sscm.model.Client;
+import com.otzar.sscm.model.ClientEntity;
 import com.otzar.sscm.repository.ClientRepository;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +17,7 @@ public class ClientController {
     }
 
     @GetMapping
-    public List<Client> getAllClients() {
+    public List<ClientEntity> getAllClients() {
         return clientRepository.findAll();
     }
 }

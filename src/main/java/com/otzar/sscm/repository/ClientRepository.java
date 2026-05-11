@@ -1,6 +1,6 @@
 package com.otzar.sscm.repository;
 
-import com.otzar.sscm.model.Client;
+import com.otzar.sscm.model.ClientEntity;
 import com.otzar.sscm.service.Persist;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +15,7 @@ public class ClientRepository {
         this.persist = persist;
     }
 
-    public List<Client> findAll() {
-        return persist.loadList(Client.class);
+    public List<ClientEntity> findAll() {
+        return persist.loadList(ClientEntity.class);
     }
 }
