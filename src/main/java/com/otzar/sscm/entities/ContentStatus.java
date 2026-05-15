@@ -1,4 +1,4 @@
-package com.otzar.sscm.model;
+package com.otzar.sscm.entities;
 
 public enum ContentStatus {
     DRAFT,

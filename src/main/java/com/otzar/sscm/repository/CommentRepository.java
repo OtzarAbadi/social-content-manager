@@ -1,6 +1,6 @@
 package com.otzar.sscm.repository;
 
-import com.otzar.sscm.model.Comment;
+import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.service.Persist;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;

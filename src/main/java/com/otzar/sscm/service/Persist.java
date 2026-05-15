@@ -1,5 +1,6 @@
 package com.otzar.sscm.service;
 
+import com.otzar.sscm.entities.User;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.springframework.stereotype.Component;
@@ -50,5 +51,11 @@ public class Persist {
                 .createQuery(hql, clazz)
                 .setParameter(parameterName, parameterValue)
                 .list();
+    }
+
+    public User login (String username){
+        return (User) sessionFactory.getCurrentSession().createQuery("FROM User WHERE username = :username")
+                .setString("username", username)
+                .uniqueResult();
     }
 }

@@ -1,6 +1,6 @@
 package com.otzar.sscm.repository;
 
-import com.otzar.sscm.model.User;
+import com.otzar.sscm.entities.User;
 import com.otzar.sscm.service.Persist;
 import org.springframework.stereotype.Repository;
 

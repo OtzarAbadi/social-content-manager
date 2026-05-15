@@ -1,9 +1,9 @@
 package com.otzar.sscm.controller;
 
-import com.otzar.sscm.model.Content;
+import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.repository.ContentRepository;
 import org.springframework.web.bind.annotation.*;
-import com.otzar.sscm.model.ContentStatus;
+import com.otzar.sscm.entities.ContentStatus;
 
 import java.util.List;
 

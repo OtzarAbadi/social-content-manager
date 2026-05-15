@@ -1,6 +1,6 @@
 package com.otzar.sscm.controller;
 
-import com.otzar.sscm.model.Comment;
+import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.repository.CommentRepository;
 import org.springframework.web.bind.annotation.*;
 

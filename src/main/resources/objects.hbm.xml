@@ -2,25 +2,26 @@
 <!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
         "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
 <hibernate-mapping>
-    <class name="com.otzar.sscm.model.User" table="users">
+    <class name="com.otzar.sscm.entities.User" table="users">
         <id name="user_id" column="user_id" type="long">
             <generator class="identity"/>
         </id>
         <property name="full_name" column="full_name" type="string" not-null="true"/>
         <property name="email" column="email" type="string" not-null="true"/>
+        <property name="username" column="username" type="string" not-null="true"/>
+        <property name="token" column="token" type="string" not-null="true"/>
     </class>
 
-    <class name="com.otzar.sscm.model.Client" table="clients">
+    <class name="com.otzar.sscm.entities.Client" table="clients">
         <id name="client_id" column="client_id" type="long">
             <generator class="identity"/>
         </id>
         <property name="user_id" column="user_id" type="long" not-null="true"/>
-        <property name="admin_id" column="admin_id" type="long"/>
         <property name="business_name" column="business_name" type="string" not-null="true"/>
         <property name="phone" column="phone" type="string"/>
     </class>
 
-    <class name="com.otzar.sscm.model.Content" table="contents">
+    <class name="com.otzar.sscm.entities.Content" table="contents">
         <id name="content_id" column="content_id" type="long">
             <generator class="identity"/>
         </id>
@@ -31,13 +32,13 @@
         <property name="content_type" column="content_type" type="string"/>
         <property name="status" column="status" not-null="true">
             <type name="org.hibernate.type.EnumType">
-                <param name="enumClass">com.otzar.sscm.model.ContentStatus</param>
+                <param name="enumClass">com.otzar.sscm.entities.ContentStatus</param>
                 <param name="useNamed">true</param>
             </type>
         </property>
     </class>
 
-    <class name="com.otzar.sscm.model.Comment" table="comments">
+    <class name="com.otzar.sscm.entities.Comment" table="comments">
         <id name="commentId" column="comment_id" type="long">
             <generator class="identity"/>
         </id>

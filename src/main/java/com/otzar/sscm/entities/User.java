@@ -1,4 +1,4 @@
-package com.otzar.sscm.model;
+package com.otzar.sscm.entities;
 
 public class User {
 
@@ -6,6 +6,8 @@ public class User {
 
     private String full_name;
     private String email;
+    private String username;
+    private String token;
 
     // getters & setters
     public Long getUser_id() { return user_id; }
@@ -16,4 +18,20 @@ public class User {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 }
