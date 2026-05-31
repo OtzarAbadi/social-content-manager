@@ -1,0 +1,42 @@
+POST http://localhost:8081/users/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "123456"
+}
+###
+
+GET http://localhost:8081/users/me
+Cookie: token=PASTE_TOKEN_HERE
+###
+
+PUT http://localhost:8081/contents/1/status?status=APPROVED
+###
+
+POST http://localhost:8081/contents
+Content-Type: application/json
+{
+  "clientId": 1,
+  "title": "פוסט חדש",
+  "description": "בדיקה של המערכת",
+  "file_url": "https://test.com/post.jpg",
+  "content_type": "IMAGE"
+}
+###
+
+GET http://localhost:8081/contents
+###
+PUT http://localhost:8081/contents/4/status?status=WAITING_APPROVAL
+###
+PUT http://localhost:8081/contents/4/status?status=APPROVED
+###
+POST http://localhost:8081/comments
+Content-Type: application/json
+{
+  "contentId": 1,
+  "userId": 1,
+  "commentText": "תשני את הכותרת"
+}
+###
+GET http://localhost:8081/comments/by-content?contentId=1

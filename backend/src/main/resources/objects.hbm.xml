@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class name="com.otzar.sscm.entities.User" table="users">
+        <id name="user_id" column="user_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="full_name" column="full_name" type="string" not-null="true"/>
+        <property name="email" column="email" type="string" not-null="true"/>
+        <property name="username" column="username" type="string" not-null="true"/>
+        <property name="password" column="password" type="string" not-null="true"/>
+        <property name="role" column="role" type="string" not-null="true"/>
+        <property name="token" column="token" type="string"/>
+    </class>
+
+    <class name="com.otzar.sscm.entities.Client" table="clients">
+        <id name="client_id" column="client_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="user_id" column="user_id" type="long" not-null="true"/>
+        <property name="admin_id" column="admin_id" type="long"/>
+        <property name="business_name" column="business_name" type="string" not-null="true"/>
+        <property name="phone" column="phone" type="string"/>
+    </class>
+
+    <class name="com.otzar.sscm.entities.Content" table="contents">
+        <id name="content_id" column="content_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="clientId" column="client_id" type="long" not-null="true"/>
+        <property name="title" column="title" type="string" not-null="true"/>
+        <property name="description" column="description" type="text"/>
+        <property name="file_url" column="file_url" type="string"/>
+        <property name="content_type" column="content_type" type="string"/>
+        <property name="status" column="status" not-null="true">
+            <type name="org.hibernate.type.EnumType">
+                <param name="enumClass">com.otzar.sscm.entities.ContentStatus</param>
+                <param name="useNamed">true</param>
+            </type>
+        </property>
+    </class>
+
+    <class name="com.otzar.sscm.entities.Comment" table="comments">
+        <id name="commentId" column="comment_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="contentId" column="content_id" type="long"/>
+        <property name="userId" column="user_id" type="long"/>
+        <property name="commentText" column="commentText" type="text"/>
+    </class>
+</hibernate-mapping>
