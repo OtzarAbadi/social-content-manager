@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap');
+
+:root {
+  --ink: #17211f;
+  --muted: #60706b;
+  --line: #dce8e4;
+  --paper: #f8fbfa;
+  --mint: #ccefe7;
+  --teal: #118b7e;
+  --coral: #ff7a59;
+  --sun: #ffd166;
+  --ui: 'Heebo', 'Noto Sans Hebrew', 'Rubik', 'Assistant', 'Segoe UI', Arial,
+    sans-serif;
+  --display: var(--ui);
+  --body: var(--ui);
+
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgba(23, 33, 31, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(23, 33, 31, 0.035) 1px, transparent 1px),
+    linear-gradient(135deg, #f5fcf9 0%, #eef7ff 44%, #fff5f1 100%);
+  background-size:
+    42px 42px,
+    42px 42px,
+    auto;
+  font-family: var(--body);
+  font-size: 16px;
+  font-synthesis: none;
+  direction: rtl;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  direction: rtl;
+}
+
+body {
+  direction: rtl;
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  text-align: start;
+}
+
+#root {
+  direction: rtl;
+}
+
+button,
+input {
+  font-family: inherit;
+}
