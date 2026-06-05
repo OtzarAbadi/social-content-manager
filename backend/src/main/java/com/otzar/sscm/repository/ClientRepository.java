@@ -20,4 +20,9 @@ public class ClientRepository {
     public List<Client> findAll() {
         return persist.loadList(Client.class);
     }
+
+    public Client save(Client client) {
+        persist.save(client);
+        return client;
+    }
 }

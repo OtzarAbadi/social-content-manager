@@ -40,7 +40,7 @@ function LoginPage({ activeRoute, routes, onNavigate }) {
                     setErrorMessage("שם משתמש או סיסמה שגויים");
                 }
             })
-            .catch(error => {
+            .catch(() => {
                 setErrorMessage("שגיאה בהתחברות לשרת");
             });
     };

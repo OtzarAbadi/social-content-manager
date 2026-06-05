@@ -228,6 +228,51 @@ input:focus-visible {
   grid-area: details;
 }
 
+.client-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 38px rgba(16, 40, 42, 0.08);
+}
+
+.client-form h3 {
+  margin: 0;
+}
+
+.client-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.client-form .login-button {
+  width: auto;
+  justify-self: start;
+}
+
+.client-form .login-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+.client-state {
+  margin: 0;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #52615d;
+  font-weight: 800;
+}
+
+.client-state-error {
+  color: #d94b4b;
+}
+
 .phone-number {
   direction: ltr;
   unicode-bidi: isolate;
@@ -365,5 +410,9 @@ input:focus-visible {
 
   .channel-pill {
     justify-self: start;
+  }
+
+  .client-form-grid {
+    grid-template-columns: 1fr;
   }
 }
