@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Transactional
@@ -21,8 +22,19 @@ public class ClientRepository {
         return persist.loadList(Client.class);
     }
 
+    public Optional<Client> findById(Long clientId) {
+        return Optional.ofNullable(persist.getQuerySession()
+                .createQuery("FROM Client WHERE client_id = :clientId", Client.class)
+                .setParameter("clientId", clientId)
+                .uniqueResult());
+    }
+
     public Client save(Client client) {
         persist.save(client);
         return client;
+    }
+
+    public void delete(Client client) {
+        persist.remove(client);
     }
 }

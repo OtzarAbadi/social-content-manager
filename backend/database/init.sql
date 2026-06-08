@@ -47,6 +47,7 @@ CREATE TABLE contents (
                           file_url VARCHAR(500),
                           content_type ENUM('IMAGE', 'VIDEO', 'TEXT') NOT NULL,
                           status ENUM('DRAFT', 'WAITING_APPROVAL', 'APPROVED', 'REJECTED') DEFAULT 'DRAFT',
+                          planned_publish_date DATETIME,
                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
                           FOREIGN KEY (client_id) REFERENCES clients(client_id)

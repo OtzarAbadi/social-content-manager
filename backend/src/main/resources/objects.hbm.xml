@@ -33,6 +33,7 @@
         <property name="description" column="description" type="text"/>
         <property name="file_url" column="file_url" type="string"/>
         <property name="content_type" column="content_type" type="string"/>
+        <property name="plannedPublishDate" column="planned_publish_date" type="java.time.LocalDateTime"/>
         <property name="status" column="status" not-null="true">
             <type name="org.hibernate.type.EnumType">
                 <param name="enumClass">com.otzar.sscm.entities.ContentStatus</param>

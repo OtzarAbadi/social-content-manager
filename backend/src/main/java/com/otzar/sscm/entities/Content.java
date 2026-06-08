@@ -1,5 +1,7 @@
 package com.otzar.sscm.entities;
 
+import java.time.LocalDateTime;
+
 public class Content {
 
     private Long content_id;
@@ -12,6 +14,7 @@ public class Content {
     private String content_type;
 
     private ContentStatus status;
+    private LocalDateTime plannedPublishDate;
 
     public Long getContent_id() { return content_id; }
     public void setContent_id(Long content_id) { this.content_id = content_id; }
@@ -21,6 +24,9 @@ public class Content {
 
     public Long getClientId() { return clientId; }
     public void setClientId(Long clientId) { this.clientId = clientId; }
+
+    public Long getClient() { return clientId; }
+    public void setClient(Long client) { this.clientId = client; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -34,6 +40,9 @@ public class Content {
     public String getContent_type() { return content_type; }
     public void setContent_type(String content_type) { this.content_type = content_type; }
 
+    public String getContentType() { return content_type; }
+    public void setContentType(String contentType) { this.content_type = contentType; }
+
     public ContentStatus getStatus() {
         return status;
     }
@@ -41,4 +50,7 @@ public class Content {
     public void setStatus(ContentStatus status) {
         this.status = status;
     }
+
+    public LocalDateTime getPlannedPublishDate() { return plannedPublishDate; }
+    public void setPlannedPublishDate(LocalDateTime plannedPublishDate) { this.plannedPublishDate = plannedPublishDate; }
 }
