@@ -4,5 +4,6 @@ public enum ContentStatus {
     DRAFT,
     WAITING_APPROVAL,
     APPROVED,
-    REJECTED
+    REJECTED,
+    PUBLISHED
 }

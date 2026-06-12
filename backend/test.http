@@ -31,6 +31,14 @@ PUT http://localhost:8081/contents/4/status?status=WAITING_APPROVAL
 ###
 PUT http://localhost:8081/contents/4/status?status=APPROVED
 ###
+PUT http://localhost:8081/contents/4/send-for-approval
+###
+PUT http://localhost:8081/contents/4/approve
+###
+PUT http://localhost:8081/contents/4/reject
+###
+PUT http://localhost:8081/contents/4/publish
+###
 POST http://localhost:8081/comments
 Content-Type: application/json
 {

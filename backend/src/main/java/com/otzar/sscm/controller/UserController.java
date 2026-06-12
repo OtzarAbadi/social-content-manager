@@ -4,6 +4,7 @@ import com.otzar.sscm.entities.User;
 import com.otzar.sscm.models.BasicResponse;
 import com.otzar.sscm.models.LoginRequest;
 import com.otzar.sscm.models.UserMeResponse;
+import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +17,11 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, AuthService authService) {
         this.userService = userService;
+        this.authService = authService;
     }
 
     @GetMapping
@@ -39,7 +42,9 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new BasicResponse(false, 401));
         }
 
-        return ResponseEntity.ok(new UserMeResponse(user));
+        Long clientId = authService.findClientIdForUser(user).orElse(null);
+
+        return ResponseEntity.ok(new UserMeResponse(user, clientId));
     }
 }
 
