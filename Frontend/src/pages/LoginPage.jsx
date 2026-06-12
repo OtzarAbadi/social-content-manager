@@ -61,7 +61,7 @@ function LoginPage({ activeRoute, routes, onNavigate }) {
                     <h2 id="login-title">כניסה</h2>
 
                     <p className="login-note">
-                        זהו מסך התחברות למערכת
+                        התחברות למערכת
                     </p>
 
                     <form
@@ -76,11 +76,10 @@ function LoginPage({ activeRoute, routes, onNavigate }) {
                     >
 
                         <label>
-                            אימייל או שם משתמש
-
+                            אימייל שם משתמש
                             <input
                                 type="text"
-                                placeholder="הקלד אימייל או שם משתמש"
+                                placeholder="הקלד שם משתמש"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                             />

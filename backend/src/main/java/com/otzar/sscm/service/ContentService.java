@@ -40,6 +40,10 @@ public class ContentService {
         return contentRepository.findByStatus(status);
     }
 
+    public List<Content> findByClientIdAndStatus(Long clientId, ContentStatus status) {
+        return contentRepository.findByClientIdAndStatus(clientId, status);
+    }
+
     public Optional<Content> findById(Long id) {
         return contentRepository.findById(id);
     }
@@ -49,10 +53,11 @@ public class ContentService {
             return ContentOperationResult.clientNotFound();
         }
 
-        if (content.getStatus() == null) {
-            content.setStatus(ContentStatus.DRAFT);
+        if (content.getStatus() != null && content.getStatus() != ContentStatus.DRAFT) {
+            throw new IllegalStateException("Content must be created as draft");
         }
 
+        content.setStatus(ContentStatus.DRAFT);
         return ContentOperationResult.success(contentRepository.save(content));
     }
 
@@ -85,6 +90,26 @@ public class ContentService {
     }
 
     public Optional<Content> updateStatus(Long id, String status) {
+        return changeStatus(id, ContentStatus.valueOf(status));
+    }
+
+    public Optional<Content> sendForApproval(Long id) {
+        return changeStatus(id, ContentStatus.WAITING_APPROVAL);
+    }
+
+    public Optional<Content> approve(Long id) {
+        return changeStatus(id, ContentStatus.APPROVED);
+    }
+
+    public Optional<Content> reject(Long id) {
+        return changeStatus(id, ContentStatus.REJECTED);
+    }
+
+    public Optional<Content> publish(Long id) {
+        return changeStatus(id, ContentStatus.PUBLISHED);
+    }
+
+    private Optional<Content> changeStatus(Long id, ContentStatus newStatus) {
         Optional<Content> existingContent = contentRepository.findById(id);
 
         if (existingContent.isEmpty()) {
@@ -92,22 +117,42 @@ public class ContentService {
         }
 
         Content content = existingContent.get();
-        ContentStatus newStatus = ContentStatus.valueOf(status);
-
-        if (newStatus == ContentStatus.APPROVED || newStatus == ContentStatus.REJECTED) {
-            if (content.getStatus() != ContentStatus.WAITING_APPROVAL) {
-                throw new IllegalStateException("Only content waiting for approval can be approved/rejected");
-            }
-        }
-
-        if (newStatus == ContentStatus.WAITING_APPROVAL) {
-            if (content.getStatus() != ContentStatus.DRAFT) {
-                throw new IllegalStateException("Only draft can be sent for approval");
-            }
-        }
+        validateStatusTransition(content.getStatus(), newStatus);
 
         content.setStatus(newStatus);
         return Optional.of(contentRepository.save(content));
+    }
+
+    private void validateStatusTransition(ContentStatus currentStatus, ContentStatus newStatus) {
+        if (currentStatus == newStatus) {
+            return;
+        }
+
+        if (newStatus == ContentStatus.WAITING_APPROVAL) {
+            if (currentStatus != ContentStatus.DRAFT) {
+                throw new IllegalStateException("Only draft can be sent for approval");
+            }
+
+            return;
+        }
+
+        if (newStatus == ContentStatus.APPROVED || newStatus == ContentStatus.REJECTED) {
+            if (currentStatus != ContentStatus.WAITING_APPROVAL) {
+                throw new IllegalStateException("Only content waiting for approval can be approved/rejected");
+            }
+
+            return;
+        }
+
+        if (newStatus == ContentStatus.PUBLISHED) {
+            if (currentStatus != ContentStatus.APPROVED) {
+                throw new IllegalStateException("Only approved content can be published");
+            }
+
+            return;
+        }
+
+        throw new IllegalStateException("Unsupported content status transition");
     }
 
     private boolean clientExists(Long clientId) {
@@ -129,10 +174,6 @@ public class ContentService {
 
         if (request.getContent_type() != null) {
             content.setContent_type(request.getContent_type());
-        }
-
-        if (request.getStatus() != null) {
-            content.setStatus(request.getStatus());
         }
 
         if (request.getClientId() != null) {

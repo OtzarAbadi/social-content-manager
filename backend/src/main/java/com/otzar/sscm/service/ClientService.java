@@ -30,6 +30,10 @@ public class ClientService {
         return clientRepository.findById(id);
     }
 
+    public Optional<Client> findByUserId(Long userId) {
+        return clientRepository.findByUserId(userId);
+    }
+
     public Client create(CreateClientRequest request) {
         User user = new User();
         user.setFull_name(valueOrFallback(request.getFullName(), request.getBusinessName()));

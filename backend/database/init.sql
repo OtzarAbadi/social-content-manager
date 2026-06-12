@@ -46,7 +46,7 @@ CREATE TABLE contents (
                           description TEXT,
                           file_url VARCHAR(500),
                           content_type ENUM('IMAGE', 'VIDEO', 'TEXT') NOT NULL,
-                          status ENUM('DRAFT', 'WAITING_APPROVAL', 'APPROVED', 'REJECTED') DEFAULT 'DRAFT',
+                          status ENUM('DRAFT', 'WAITING_APPROVAL', 'APPROVED', 'REJECTED', 'PUBLISHED') DEFAULT 'DRAFT',
                           planned_publish_date DATETIME,
                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 

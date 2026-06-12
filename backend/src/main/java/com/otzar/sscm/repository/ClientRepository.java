@@ -29,6 +29,14 @@ public class ClientRepository {
                 .uniqueResult());
     }
 
+    public Optional<Client> findByUserId(Long userId) {
+        return Optional.ofNullable(persist.getQuerySession()
+                .createQuery("FROM Client WHERE user_id = :userId", Client.class)
+                .setParameter("userId", userId)
+                .setMaxResults(1)
+                .uniqueResult());
+    }
+
     public Client save(Client client) {
         persist.save(client);
         return client;

@@ -31,6 +31,14 @@ public class ContentRepository {
         return persist.loadListByParameter("FROM Content WHERE status = :status", "status", status, Content.class);
     }
 
+    public List<Content> findByClientIdAndStatus(Long clientId, ContentStatus status) {
+        return persist.getQuerySession()
+                .createQuery("FROM Content WHERE clientId = :clientId AND status = :status", Content.class)
+                .setParameter("clientId", clientId)
+                .setParameter("status", status)
+                .list();
+    }
+
     public Optional<Content> findById(Long contentId) {
         return Optional.ofNullable(persist.loadObject(Content.class, contentId));
     }
