@@ -7,6 +7,8 @@ const api = axios.create({
   withCredentials: true,
 })
 
+const API_BASE_URL = 'http://localhost:8081'
+
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
   { value: 'WAITING_APPROVAL', label: 'ממתין לאישור' },
@@ -35,10 +37,24 @@ const emptyContentForm = {
   clientId: '',
   title: '',
   description: '',
-  file_url: '',
+  file: null,
   content_type: 'IMAGE',
   status: 'DRAFT',
   plannedPublishDate: '',
+}
+
+function getFileUrl(fileUrl) {
+  if (!fileUrl) return ''
+  return fileUrl.startsWith('http') ? fileUrl : `${API_BASE_URL}${fileUrl}`
+}
+
+function getMediaKind(content) {
+  const path = (content.file_url || '').split('?')[0].toLowerCase()
+  if (/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(path)) return 'image'
+  if (/\.(mp4|webm|mov|avi|mkv)$/.test(path)) return 'video'
+  if (content.content_type === 'IMAGE') return 'image'
+  if (content.content_type === 'VIDEO') return 'video'
+  return 'file'
 }
 
 const emptyCommentForm = {
@@ -416,11 +432,11 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
   }
 
   function handleContentFormChange(event) {
-    const { name, value } = event.target
+    const { name, value, files } = event.target
 
     setContentForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: name === 'file' ? files[0] || null : value,
     }))
   }
 
@@ -429,16 +445,17 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
     setSaving((current) => ({ ...current, content: true }))
     setErrors((current) => ({ ...current, contents: '' }))
 
-    const payload = {
-      clientId: Number(contentForm.clientId),
-      title: contentForm.title,
-      description: contentForm.description,
-      file_url: contentForm.file_url,
-      content_type: contentForm.content_type,
-    }
+    const payload = new FormData()
+    payload.append('clientId', contentForm.clientId)
+    payload.append('title', contentForm.title)
+    payload.append('description', contentForm.description)
+    payload.append('contentType', contentForm.content_type)
 
     if (contentForm.plannedPublishDate) {
-      payload.plannedPublishDate = contentForm.plannedPublishDate
+      payload.append('plannedPublishDate', contentForm.plannedPublishDate)
+    }
+    if (contentForm.file) {
+      payload.append('file', contentForm.file)
     }
 
     try {
@@ -447,10 +464,17 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
       setShowCreateForm((current) => ({ ...current, contents: false }))
       await loadContents()
       showNotice('התוכן נוצר בהצלחה')
-    } catch {
+    } catch (error) {
+      const backendMessage = typeof error.response?.data === 'string'
+        ? error.response.data
+        : error.response?.data?.message
+      const statusMessage = error.response?.status
+        ? `Request failed (${error.response.status})`
+        : ''
+
       setErrors((current) => ({
         ...current,
-        contents: 'לא הצלחנו ליצור את התוכן. בדקי שנבחר לקוח קיים',
+        contents: backendMessage || statusMessage || error.message || 'לא הצלחנו ליצור את התוכן',
       }))
     } finally {
       setSaving((current) => ({ ...current, content: false }))
@@ -1260,8 +1284,18 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
                                     : '-'}
                                 </span>
                               </div>
-                              {content.file_url && (
-                                <a className="file-link" href={content.file_url} target="_blank" rel="noreferrer">
+                              {content.file_url && getMediaKind(content) === 'image' && (
+                                <a href={getFileUrl(content.file_url)} target="_blank" rel="noreferrer">
+                                  <img className="content-media" src={getFileUrl(content.file_url)} alt={content.title} />
+                                </a>
+                              )}
+                              {content.file_url && getMediaKind(content) === 'video' && (
+                                <video className="content-media" src={getFileUrl(content.file_url)} controls preload="metadata">
+                                  <a href={getFileUrl(content.file_url)}>פתיחת הווידאו</a>
+                                </video>
+                              )}
+                              {content.file_url && getMediaKind(content) === 'file' && (
+                                <a className="file-link" href={getFileUrl(content.file_url)} target="_blank" rel="noreferrer">
                                   קובץ מצורף
                                 </a>
                               )}
@@ -1397,10 +1431,11 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
                           />
                         </label>
                         <label>
-                          קישור לקובץ
+                          קובץ תמונה או וידאו
                           <input
-                            name="file_url"
-                            value={contentForm.file_url}
+                            name="file"
+                            type="file"
+                            accept="image/*,video/*"
                             onChange={handleContentFormChange}
                           />
                         </label>

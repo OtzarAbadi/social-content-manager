@@ -6,6 +6,7 @@ import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.ContentRepository;
+import com.otzar.sscm.service.FileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.mock.web.MockMultipartFile;
 
 import javax.servlet.http.Cookie;
 
@@ -21,6 +24,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,6 +45,9 @@ class SocialContentManagerApplicationTests {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private FileStorageService fileStorageService;
+
     private Cookie adminCookie;
     private Cookie clientCookie;
 
@@ -52,6 +59,63 @@ class SocialContentManagerApplicationTests {
 
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void createContentWithUploadedImageBindsAllMultipartFields() throws Exception {
+        Client client = createClient(2L);
+        MockMultipartFile image = new MockMultipartFile(
+                "file", "test-image.png", "image/png", new byte[]{1, 2, 3});
+
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(image)
+                        .param("clientId", client.getClient_id().toString())
+                        .param("title", "Uploaded image content")
+                        .param("description", "Multipart description")
+                        .param("contentType", "IMAGE")
+                        .param("plannedPublishDate", "2026-07-01T12:30")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.clientId").value(client.getClient_id()))
+                .andExpect(jsonPath("$.title").value("Uploaded image content"))
+                .andExpect(jsonPath("$.description").value("Multipart description"))
+                .andExpect(jsonPath("$.content_type").value("IMAGE"))
+                .andExpect(jsonPath("$.file_url").value(org.hamcrest.Matchers.startsWith("/uploads/")))
+                .andReturn();
+
+        String fileUrl = objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("file_url").asText();
+        java.nio.file.Files.deleteIfExists(
+                fileStorageService.getUploadDirectory().resolve(fileUrl.substring("/uploads/".length())));
+    }
+
+    @Test
+    void jsonContentCreationRemainsSupported() throws Exception {
+        Client client = createClient(2L);
+        Content content = new Content();
+        content.setClientId(client.getClient_id());
+        content.setTitle("JSON content");
+        content.setDescription("Created without a file");
+        content.setContent_type("TEXT");
+
+        mockMvc.perform(post("/contents")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(content))
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value("JSON content"));
+    }
+
+    @Test
+    void unsupportedCreateContentMediaTypeReturnsReadableError() throws Exception {
+        mockMvc.perform(post("/contents")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not a supported content request")
+                        .cookie(adminCookie))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message",
+                        org.hamcrest.Matchers.containsString("text/plain")));
     }
 
     @Test

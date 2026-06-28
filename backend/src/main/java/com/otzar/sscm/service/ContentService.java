@@ -5,6 +5,8 @@ import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.ContentRepository;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +14,7 @@ import java.util.Optional;
 @Service
 public class ContentService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ContentService.class);
     private final ContentRepository contentRepository;
     private final ClientRepository clientRepository;
 
@@ -49,6 +52,10 @@ public class ContentService {
     }
 
     public ContentOperationResult create(Content content) {
+        if (content.getTitle() == null || content.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+
         if (!clientExists(content.getClientId())) {
             return ContentOperationResult.clientNotFound();
         }
@@ -155,8 +162,10 @@ public class ContentService {
         throw new IllegalStateException("Unsupported content status transition");
     }
 
-    private boolean clientExists(Long clientId) {
-        return clientId != null && clientRepository.findById(clientId).isPresent();
+    public boolean clientExists(Long clientId) {
+        boolean exists = clientId != null && clientRepository.findById(clientId).isPresent();
+        logger.info("Client lookup for content creation: clientId={}, found={}", clientId, exists);
+        return exists;
     }
 
     private void applyRequest(Content content, Content request) {

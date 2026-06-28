@@ -3,10 +3,14 @@ package com.otzar.sscm.controller;
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.entities.User;
+import com.otzar.sscm.models.ApiResponse;
+import com.otzar.sscm.models.CreateContentMultipartRequest;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.ContentService;
+import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,22 +22,30 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ModelAttribute;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/contents")
 public class ContentController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ContentController.class);
     private final ContentService contentService;
     private final AuthService authService;
+    private final FileStorageService fileStorageService;
 
-    public ContentController(ContentService contentService, AuthService authService) {
+    public ContentController(ContentService contentService, AuthService authService,
+                             FileStorageService fileStorageService) {
         this.contentService = contentService;
         this.authService = authService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping
@@ -136,17 +148,68 @@ public class ContentController {
         }
     }
 
-    @PostMapping
-    public ResponseEntity<Content> addContent(@RequestBody Content content,
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> addContent(@RequestBody Content content,
                                               @CookieValue(value = "token", required = false) String token) {
+        return createContent(content, token);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> addContentWithFile(
+            @ModelAttribute CreateContentMultipartRequest request,
+            @CookieValue(value = "token", required = false) String token) {
+        logger.info("Create content multipart request: clientId={}, titlePresent={}, filePresent={}",
+                request.getClientId(),
+                request.getTitle() != null && !request.getTitle().trim().isEmpty(),
+                request.getFile() != null && !request.getFile().isEmpty());
+
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, "Authentication required"));
+        }
+        if (!authService.isAdmin(currentUser.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You are not allowed to create content"));
+        }
+        if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(new ApiResponse(false, "Title is required"));
+        }
+        if (!contentService.clientExists(request.getClientId())) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, "Client not found for id: " + request.getClientId()));
+        }
+
+        Content content = new Content();
+        content.setClientId(request.getClientId());
+        content.setTitle(request.getTitle().trim());
+        content.setDescription(request.getDescription());
+        content.setContent_type(request.getContentType());
+        content.setPlannedPublishDate(request.getPlannedPublishDate());
+
+        try {
+            content.setFile_url(fileStorageService.store(request.getFile()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(new ApiResponse(false, ex.getMessage()));
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Could not save uploaded file"));
+        }
+
+        return createContent(content, token);
+    }
+
+    private ResponseEntity<?> createContent(Content content, String token) {
         Optional<User> currentUser = authService.findUserByToken(token);
 
         if (currentUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, "Authentication required"));
         }
 
         if (!authService.isAdmin(currentUser.get())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "You are not allowed to create content"));
         }
 
         ContentOperationResult result;
@@ -154,11 +217,11 @@ public class ContentController {
         try {
             result = contentService.create(content);
         } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(new ApiResponse(false, ex.getMessage()));
         }
 
         if (!result.isSuccess()) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.badRequest().body(new ApiResponse(false, "Content must be connected to a client"));
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(result.getContent());
