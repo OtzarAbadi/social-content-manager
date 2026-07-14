@@ -2,11 +2,14 @@ package com.otzar.sscm.service;
 
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
+import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.repository.ClientRepository;
+import com.otzar.sscm.repository.CommentRepository;
 import com.otzar.sscm.repository.ContentRepository;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,10 +20,13 @@ public class ContentService {
     private static final Logger logger = LoggerFactory.getLogger(ContentService.class);
     private final ContentRepository contentRepository;
     private final ClientRepository clientRepository;
+    private final CommentRepository commentRepository;
 
-    public ContentService(ContentRepository contentRepository, ClientRepository clientRepository) {
+    public ContentService(ContentRepository contentRepository, ClientRepository clientRepository,
+                          CommentRepository commentRepository) {
         this.contentRepository = contentRepository;
         this.clientRepository = clientRepository;
+        this.commentRepository = commentRepository;
     }
 
     public List<Content> findAll() {
@@ -112,6 +118,23 @@ public class ContentService {
         return changeStatus(id, ContentStatus.REJECTED);
     }
 
+    @Transactional
+    public Optional<Content> reject(Long id, Long userId, String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Rejection reason is required");
+        }
+
+        Optional<Content> rejectedContent = changeStatus(id, ContentStatus.REJECTED);
+        rejectedContent.ifPresent(content -> {
+            Comment comment = new Comment();
+            comment.setContentId(id);
+            comment.setUserId(userId);
+            comment.setCommentText(reason.trim());
+            commentRepository.save(comment);
+        });
+        return rejectedContent;
+    }
+
     public Optional<Content> publish(Long id) {
         return changeStatus(id, ContentStatus.PUBLISHED);
     }
@@ -136,8 +159,8 @@ public class ContentService {
         }
 
         if (newStatus == ContentStatus.WAITING_APPROVAL) {
-            if (currentStatus != ContentStatus.DRAFT) {
-                throw new IllegalStateException("Only draft can be sent for approval");
+            if (currentStatus != ContentStatus.DRAFT && currentStatus != ContentStatus.REJECTED) {
+                throw new IllegalStateException("Only draft or rejected content can be sent for approval");
             }
 
             return;

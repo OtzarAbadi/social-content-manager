@@ -14,12 +14,6 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.Properties;
 
-import static com.otzar.sscm.utils.Constants.DB_HOST;
-import static com.otzar.sscm.utils.Constants.DB_PASSWORD;
-import static com.otzar.sscm.utils.Constants.DB_PORT;
-import static com.otzar.sscm.utils.Constants.DB_USERNAME;
-import static com.otzar.sscm.utils.Constants.SCHEMA;
-
 @Configuration
 @Profile({"default", "production"})
 public class AppConfig {
@@ -32,22 +26,23 @@ public class AppConfig {
 
     @Bean
     public DataSource dataSource() throws Exception {
-        String dbUser = DB_USERNAME;
-        String dbSchema = env.getProperty("DB_SCHEMA", SCHEMA);
-        String dbPass = env.getProperty("DB_PASSWORD", DB_PASSWORD);
-        String host = env.getProperty("DB_HOST", DB_HOST);
-        Integer port = env.getProperty("DB_PORT", Integer.class, DB_PORT);
+        String driverClassName = env.getRequiredProperty("spring.datasource.driver-class-name");
+        String jdbcUrl = env.getRequiredProperty("spring.datasource.url");
+        String dbUser = env.getRequiredProperty("spring.datasource.username");
+        String dbPass = env.getProperty("spring.datasource.password", "");
 
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        String createSchemaUrl = "jdbc:mysql://" + host + ":" + port + "/?useSSL=false&allowPublicKeyRetrieval=true";
-        try (Connection connection = DriverManager.getConnection(createSchemaUrl, dbUser, dbPass);
-             Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + dbSchema);
+        Class.forName(driverClassName);
+        String schema = extractSchemaName(jdbcUrl);
+        if (schema != null && !schema.trim().isEmpty()) {
+            try (Connection connection = DriverManager.getConnection(createSchemaUrl(jdbcUrl), dbUser, dbPass);
+                 Statement statement = connection.createStatement()) {
+                statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS `" + schema.replace("`", "``") + "`");
+            }
         }
 
         ComboPooledDataSource dataSource = new ComboPooledDataSource();
-        dataSource.setDriverClass("com.mysql.cj.jdbc.Driver");
-        dataSource.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + dbSchema + "?useSSL=false&allowPublicKeyRetrieval=true");
+        dataSource.setDriverClass(driverClassName);
+        dataSource.setJdbcUrl(jdbcUrl);
         dataSource.setUser(dbUser);
         dataSource.setPassword(dbPass);
         dataSource.setMaxPoolSize(20);
@@ -55,6 +50,31 @@ public class AppConfig {
         dataSource.setIdleConnectionTestPeriod(3600);
         dataSource.setTestConnectionOnCheckin(true);
         return dataSource;
+    }
+
+    private String createSchemaUrl(String jdbcUrl) {
+        int queryStart = jdbcUrl.indexOf('?');
+        String query = queryStart >= 0 ? jdbcUrl.substring(queryStart) : "";
+        String withoutQuery = queryStart >= 0 ? jdbcUrl.substring(0, queryStart) : jdbcUrl;
+        int schemaSlash = withoutQuery.indexOf('/', "jdbc:mysql://".length());
+
+        if (schemaSlash < 0) {
+            return withoutQuery + "/" + query;
+        }
+
+        return withoutQuery.substring(0, schemaSlash + 1) + query;
+    }
+
+    private String extractSchemaName(String jdbcUrl) {
+        int queryStart = jdbcUrl.indexOf('?');
+        String withoutQuery = queryStart >= 0 ? jdbcUrl.substring(0, queryStart) : jdbcUrl;
+        int schemaSlash = withoutQuery.indexOf('/', "jdbc:mysql://".length());
+
+        if (schemaSlash < 0 || schemaSlash == withoutQuery.length() - 1) {
+            return null;
+        }
+
+        return withoutQuery.substring(schemaSlash + 1);
     }
 
     @Bean

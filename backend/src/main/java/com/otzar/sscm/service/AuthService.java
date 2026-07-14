@@ -10,7 +10,6 @@ import java.util.Optional;
 @Service
 public class AuthService {
 
-    private static final String ADMIN_ROLE = "ADMIN";
     private static final String CLIENT_ROLE = "CLIENT";
 
     private final UserService userService;

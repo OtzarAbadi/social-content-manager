@@ -7,6 +7,7 @@ import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.ContentRepository;
 import com.otzar.sscm.service.FileStorageService;
+import com.otzar.sscm.repository.CommentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ class SocialContentManagerApplicationTests {
 
     @Autowired
     private ContentRepository contentRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -161,9 +165,33 @@ class SocialContentManagerApplicationTests {
     void rejectChangesWaitingApprovalToRejected() throws Exception {
         Content content = createContent(ContentStatus.WAITING_APPROVAL);
 
-        mockMvc.perform(put("/contents/{id}/reject", content.getContent_id()).cookie(clientCookie))
+        mockMvc.perform(put("/contents/{id}/reject", content.getContent_id()).cookie(clientCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"The message needs revision\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("REJECTED"));
+
+        org.junit.jupiter.api.Assertions.assertEquals("The message needs revision",
+                commentRepository.getCommentsByContentId(content.getContent_id()).get(0).getCommentText());
+    }
+
+    @Test
+    void rejectRequiresReason() throws Exception {
+        Content content = createContent(ContentStatus.WAITING_APPROVAL);
+
+        mockMvc.perform(put("/contents/{id}/reject", content.getContent_id()).cookie(clientCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectedContentCanBeSentForApprovalAgain() throws Exception {
+        Content content = createContent(ContentStatus.REJECTED);
+
+        mockMvc.perform(put("/contents/{id}/send-for-approval", content.getContent_id()).cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING_APPROVAL"));
     }
 
     @Test

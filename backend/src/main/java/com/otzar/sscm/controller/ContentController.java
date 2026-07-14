@@ -9,6 +9,7 @@ import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.ContentService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
+import com.otzar.sscm.models.RejectContentRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -279,6 +280,7 @@ public class ContentController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Content> updateStatus(@PathVariable Long id,
                                                 @RequestParam String status,
+                                                @RequestBody(required = false) RejectContentRequest request,
                                                 @CookieValue(value = "token", required = false) String token) {
         ContentStatus requestedStatus;
 
@@ -293,7 +295,7 @@ public class ContentController {
         }
 
         if (requestedStatus == ContentStatus.REJECTED) {
-            return clientStatusChange(id, token, () -> contentService.reject(id));
+            return clientRejection(id, token, request);
         }
 
         Optional<User> currentUser = authService.findUserByToken(token);
@@ -339,8 +341,9 @@ public class ContentController {
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<Content> reject(@PathVariable Long id,
+                                          @RequestBody RejectContentRequest request,
                                           @CookieValue(value = "token", required = false) String token) {
-        return clientStatusChange(id, token, () -> contentService.reject(id));
+        return clientRejection(id, token, request);
     }
 
     @PutMapping("/{id}/publish")
@@ -381,6 +384,31 @@ public class ContentController {
         }
 
         return changeStatus(operation);
+    }
+
+    private ResponseEntity<Content> clientRejection(Long id, String token, RejectContentRequest request) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = currentUser.get();
+        if (!authService.isClient(user)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Optional<Content> content = contentService.findById(id);
+        if (content.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!authService.canAccessContent(user, content.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        String reason = request == null ? null : request.getReason();
+        return changeStatus(() -> contentService.reject(id, user.getUser_id(), reason));
     }
 
     private ContentStatus parseStatus(String status) {

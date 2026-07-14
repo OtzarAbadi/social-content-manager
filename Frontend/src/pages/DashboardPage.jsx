@@ -168,6 +168,8 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
     profile: '',
   })
   const [notice, setNotice] = useState('')
+  const [rejectionDialog, setRejectionDialog] = useState({ contentId: null, reason: '' })
+  const [rejecting, setRejecting] = useState(false)
 
   const clientById = useMemo(() => {
     return new Map(clients.map((client) => [Number(getClientId(client)), client]))
@@ -639,6 +641,11 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
   }
 
   async function handleUpdateStatus(contentId, status) {
+    if (status === 'REJECTED') {
+      setRejectionDialog({ contentId, reason: '' })
+      return
+    }
+
     const statusEndpointByValue = {
       WAITING_APPROVAL: 'send-for-approval',
       APPROVED: 'approve',
@@ -665,8 +672,28 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
     }
   }
 
+  async function handleRejectContent(event) {
+    event.preventDefault()
+    const reason = rejectionDialog.reason.trim()
+    if (!reason) return
+
+    setRejecting(true)
+    setErrors((current) => ({ ...current, contents: '' }))
+    try {
+      await api.put(`/contents/${rejectionDialog.contentId}/reject`, { reason })
+      const contentId = rejectionDialog.contentId
+      setRejectionDialog({ contentId: null, reason: '' })
+      await Promise.all([loadContents(), loadComments()])
+      showNotice(`התוכן #${contentId} נדחה וסיבת הדחייה נשמרה כתגובה`)
+    } catch {
+      setErrors((current) => ({ ...current, contents: 'לא הצלחנו לדחות את התוכן. יש להזין סיבת דחייה.' }))
+    } finally {
+      setRejecting(false)
+    }
+  }
+
   function getStatusActions(status) {
-    if (isAdmin && status === 'DRAFT') {
+    if (isAdmin && (status === 'DRAFT' || status === 'REJECTED')) {
       return [{ value: 'WAITING_APPROVAL', label: 'שליחה לאישור' }]
     }
 
@@ -1194,6 +1221,11 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
                     const contentClientId = content.clientId ?? content.client_id
                     const isEditing = editingContentId === contentId
                     const statusActions = getStatusActions(content.status)
+                    const rejectionReason = content.status === 'REJECTED'
+                      ? comments
+                        .filter((comment) => Number(comment.contentId) === Number(contentId))
+                        .sort((first, second) => Number(second.commentId) - Number(first.commentId))[0]
+                      : null
 
                     return (
                       <article className="entity-card content-card" key={contentId}>
@@ -1298,6 +1330,12 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
                                 <a className="file-link" href={getFileUrl(content.file_url)} target="_blank" rel="noreferrer">
                                   קובץ מצורף
                                 </a>
+                              )}
+                              {isAdmin && rejectionReason && (
+                                <aside className="rejection-reason" aria-label="סיבת דחייה">
+                                  <strong>סיבת הדחייה</strong>
+                                  <p>{rejectionReason.commentText}</p>
+                                </aside>
                               )}
                             </>
                           )}
@@ -1564,6 +1602,33 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
           )}
         </section>
       </section>
+      {rejectionDialog.contentId !== null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
+            <form onSubmit={handleRejectContent}>
+              <h2 id="reject-dialog-title">דחיית תוכן</h2>
+              <p>נא להסביר מדוע התוכן נדחה. הסיבה תישמר כתגובה ותוצג למנהל.</p>
+              <label>
+                סיבת דחייה
+                <textarea
+                  autoFocus
+                  value={rejectionDialog.reason}
+                  onChange={(event) => setRejectionDialog((current) => ({ ...current, reason: event.target.value }))}
+                  required
+                />
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="ghost-button" onClick={() => setRejectionDialog({ contentId: null, reason: '' })} disabled={rejecting}>
+                  ביטול
+                </button>
+                <button className="danger-button" type="submit" disabled={rejecting || !rejectionDialog.reason.trim()}>
+                  {rejecting ? 'דוחה...' : 'דחיית התוכן'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </PageShell>
   )
 }
