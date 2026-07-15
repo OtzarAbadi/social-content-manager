@@ -36,6 +36,16 @@ public class UserRepository {
                 .uniqueResult());
     }
 
+    public Optional<User> findById(Long id) {
+        return Optional.ofNullable(persist.loadObject(User.class, id));
+    }
+
+    public Optional<User> findFirstAdmin() {
+        return persist.getQuerySession().createQuery(
+                "FROM User WHERE UPPER(role) = 'ADMIN' ORDER BY user_id", User.class)
+                .setMaxResults(1).uniqueResultOptional();
+    }
+
     public User save(User user) {
         persist.save(user);
         return user;

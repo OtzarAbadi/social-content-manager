@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import NotificationsMenu from './NotificationsMenu.jsx'
 
 const api = axios.create({ baseURL: 'http://localhost:8081', withCredentials: true })
 
@@ -59,7 +60,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         <header className="app-topbar">
           <div><p className="topbar-kicker">Smart Social Content Manager</p><h1>{pageTitles[activeRoute] || 'SSCM'}</h1></div>
           <div className="topbar-profile">
-            <button className="notification-button" type="button" disabled aria-label="התראות - בקרוב">♢</button>
+            <NotificationsMenu onNavigate={onNavigate} />
             <div className="profile-copy"><strong>{profile?.fullName || profile?.username || 'משתמש'}</strong><span>{profile ? (isAdmin ? 'מנהל' : 'לקוח') : 'טוען...'}</span></div>
             <span className="profile-avatar" aria-hidden="true">{initials(profile)}</span>
           </div>

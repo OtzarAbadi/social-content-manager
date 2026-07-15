@@ -6,6 +6,7 @@ import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.ContentRepository;
+import com.otzar.sscm.repository.NotificationRepository;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.repository.CommentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,9 @@ class SocialContentManagerApplicationTests {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -265,6 +269,80 @@ class SocialContentManagerApplicationTests {
         org.junit.jupiter.api.Assertions.assertEquals(
                 LocalDateTime.of(2026, 8, 1, 10, 0),
                 contentRepository.findById(content.getContent_id()).orElseThrow().getPlannedPublishDate());
+    }
+
+    @Test
+    void clientReceivesNotificationWhenContentIsSentForApproval() throws Exception {
+        Content content = createContent(ContentStatus.DRAFT);
+        mockMvc.perform(put("/contents/{id}/send-for-approval", content.getContent_id()).cookie(adminCookie))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/notifications").cookie(clientCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("CONTENT_WAITING_APPROVAL"))
+                .andExpect(jsonPath("$[0].relatedContentId").value(content.getContent_id()));
+    }
+
+    @Test
+    void adminReceivesApprovalAndRejectionNotifications() throws Exception {
+        Content approved = createContent(ContentStatus.WAITING_APPROVAL);
+        mockMvc.perform(put("/contents/{id}/approve", approved.getContent_id()).cookie(clientCookie))
+                .andExpect(status().isOk());
+
+        Content rejected = createContent(ContentStatus.WAITING_APPROVAL);
+        mockMvc.perform(put("/contents/{id}/reject", rejected.getContent_id()).cookie(clientCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Please change the caption\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/notifications").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("CONTENT_REJECTED"))
+                .andExpect(jsonPath("$[0].message", org.hamcrest.Matchers.containsString("Please change the caption")))
+                .andExpect(jsonPath("$[1].type").value("CONTENT_APPROVED"));
+    }
+
+    @Test
+    void commentNotifiesOppositeParty() throws Exception {
+        Content content = createContent(ContentStatus.DRAFT);
+        mockMvc.perform(post("/comments").cookie(clientCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentId\":" + content.getContent_id() + ",\"commentText\":\"A client note\"}"))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/notifications").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("COMMENT_ADDED"))
+                .andExpect(jsonPath("$[0].relatedContentId").value(content.getContent_id()));
+    }
+
+    @Test
+    void notificationOwnerCanMarkReadButOtherUserCannot() throws Exception {
+        Content content = createContent(ContentStatus.DRAFT);
+        mockMvc.perform(put("/contents/{id}/send-for-approval", content.getContent_id()).cookie(adminCookie))
+                .andExpect(status().isOk());
+        Long notificationId = notificationRepository.findByUserId(2L).get(0).getNotificationId();
+
+        mockMvc.perform(put("/notifications/{id}/read", notificationId).cookie(adminCookie))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(put("/notifications/{id}/read", notificationId).cookie(clientCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.read").value(true));
+    }
+
+    @Test
+    void unreadCountAndMarkAllReadAreScopedToCurrentUser() throws Exception {
+        Content clientNotification = createContent(ContentStatus.DRAFT);
+        mockMvc.perform(put("/contents/{id}/send-for-approval", clientNotification.getContent_id()).cookie(adminCookie))
+                .andExpect(status().isOk());
+        Content adminNotification = createContent(ContentStatus.WAITING_APPROVAL);
+        mockMvc.perform(put("/contents/{id}/approve", adminNotification.getContent_id()).cookie(clientCookie))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/notifications/read-all").cookie(clientCookie)).andExpect(status().isNoContent());
+        mockMvc.perform(get("/notifications/unread-count").cookie(clientCookie))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.count").value(0));
+        mockMvc.perform(get("/notifications/unread-count").cookie(adminCookie))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.count", org.hamcrest.Matchers.greaterThan(0)));
     }
 
     private Content createContent(ContentStatus status) {

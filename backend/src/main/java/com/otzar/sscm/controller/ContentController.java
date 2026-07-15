@@ -3,11 +3,13 @@ package com.otzar.sscm.controller;
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.entities.User;
+import com.otzar.sscm.entities.NotificationType;
 import com.otzar.sscm.models.ApiResponse;
 import com.otzar.sscm.models.CreateContentMultipartRequest;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.ContentService;
 import com.otzar.sscm.service.FileStorageService;
+import com.otzar.sscm.service.NotificationService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
 import com.otzar.sscm.models.RejectContentRequest;
 import com.otzar.sscm.models.UpdateScheduleRequest;
@@ -42,12 +44,14 @@ public class ContentController {
     private final ContentService contentService;
     private final AuthService authService;
     private final FileStorageService fileStorageService;
+    private final NotificationService notificationService;
 
     public ContentController(ContentService contentService, AuthService authService,
-                             FileStorageService fileStorageService) {
+                             FileStorageService fileStorageService, NotificationService notificationService) {
         this.contentService = contentService;
         this.authService = authService;
         this.fileStorageService = fileStorageService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -226,7 +230,10 @@ public class ContentController {
             return ResponseEntity.badRequest().body(new ApiResponse(false, "Content must be connected to a client"));
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(result.getContent());
+        Content created = result.getContent();
+        notificationService.notifyClient(created, NotificationType.CONTENT_CREATED,
+                "תוכן חדש נוצר", "נוצר עבורך תוכן חדש: " + created.getTitle());
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
@@ -312,7 +319,11 @@ public class ContentController {
         }
 
         if (requestedStatus == ContentStatus.APPROVED) {
-            return clientStatusChange(id, token, () -> contentService.approve(id));
+            return clientStatusChange(id, token, () -> contentService.approve(id).map(content -> {
+                notificationService.notifyAdmin(content, NotificationType.CONTENT_APPROVED,
+                        "התוכן אושר", "הלקוח אישר את התוכן ‘" + content.getTitle() + "’");
+                return content;
+            }));
         }
 
         if (requestedStatus == ContentStatus.REJECTED) {
@@ -330,7 +341,7 @@ public class ContentController {
         }
 
         try {
-            return contentService.updateStatus(id, requestedStatus.name())
+            return withStatusNotification(contentService.updateStatus(id, requestedStatus.name()), requestedStatus)
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (IllegalArgumentException | IllegalStateException ex) {
@@ -351,13 +362,24 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(() -> contentService.sendForApproval(id));
+        ContentStatus previousStatus = contentService.findById(id).map(Content::getStatus).orElse(null);
+        return changeStatus(() -> contentService.sendForApproval(id).map(content -> {
+            NotificationType type = previousStatus == ContentStatus.REJECTED
+                    ? NotificationType.CONTENT_RESUBMITTED : NotificationType.CONTENT_WAITING_APPROVAL;
+            String title = type == NotificationType.CONTENT_RESUBMITTED ? "התוכן הוגש מחדש" : "תוכן ממתין לאישור";
+            notificationService.notifyClient(content, type, title, "התוכן ‘" + content.getTitle() + "’ מוכן לבדיקה");
+            return content;
+        }));
     }
 
     @PutMapping("/{id}/approve")
     public ResponseEntity<Content> approve(@PathVariable Long id,
                                            @CookieValue(value = "token", required = false) String token) {
-        return clientStatusChange(id, token, () -> contentService.approve(id));
+        return clientStatusChange(id, token, () -> contentService.approve(id).map(content -> {
+            notificationService.notifyAdmin(content, NotificationType.CONTENT_APPROVED,
+                    "התוכן אושר", "הלקוח אישר את התוכן ‘" + content.getTitle() + "’");
+            return content;
+        }));
     }
 
     @PutMapping("/{id}/reject")
@@ -380,7 +402,11 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(() -> contentService.publish(id));
+        return changeStatus(() -> contentService.publish(id).map(content -> {
+            notificationService.notifyClient(content, NotificationType.CONTENT_PUBLISHED,
+                    "התוכן פורסם", "התוכן ‘" + content.getTitle() + "’ פורסם");
+            return content;
+        }));
     }
 
     private ResponseEntity<Content> clientStatusChange(Long id, String token, ContentStatusOperation operation) {
@@ -429,7 +455,24 @@ public class ContentController {
         }
 
         String reason = request == null ? null : request.getReason();
-        return changeStatus(() -> contentService.reject(id, user.getUser_id(), reason));
+        return changeStatus(() -> contentService.reject(id, user.getUser_id(), reason).map(rejected -> {
+            notificationService.notifyAdmin(rejected, NotificationType.CONTENT_REJECTED,
+                    "התוכן נדחה", "התוכן ‘" + rejected.getTitle() + "’ נדחה. סיבה: " + reason.trim());
+            return rejected;
+        }));
+    }
+
+    private Optional<Content> withStatusNotification(Optional<Content> result, ContentStatus status) {
+        return result.map(content -> {
+            if (status == ContentStatus.WAITING_APPROVAL) {
+                notificationService.notifyClient(content, NotificationType.CONTENT_WAITING_APPROVAL,
+                        "תוכן ממתין לאישור", "התוכן ‘" + content.getTitle() + "’ מוכן לבדיקה");
+            } else if (status == ContentStatus.PUBLISHED) {
+                notificationService.notifyClient(content, NotificationType.CONTENT_PUBLISHED,
+                        "התוכן פורסם", "התוכן ‘" + content.getTitle() + "’ פורסם");
+            }
+            return content;
+        });
     }
 
     private ContentStatus parseStatus(String status) {

@@ -50,4 +50,25 @@
         <property name="userId" column="user_id" type="long"/>
         <property name="commentText" column="commentText" type="text"/>
     </class>
+
+    <class name="com.otzar.sscm.entities.Admin" table="admins">
+        <id name="adminId" column="admin_id" type="long"><generator class="identity"/></id>
+        <property name="userId" column="user_id" type="long" not-null="true"/>
+    </class>
+
+    <class name="com.otzar.sscm.entities.Notification" table="notifications">
+        <id name="notificationId" column="notification_id" type="long"><generator class="identity"/></id>
+        <property name="userId" column="user_id" type="long" not-null="true"/>
+        <property name="type" column="type" not-null="true">
+            <type name="org.hibernate.type.EnumType">
+                <param name="enumClass">com.otzar.sscm.entities.NotificationType</param>
+                <param name="useNamed">true</param>
+            </type>
+        </property>
+        <property name="title" column="title" type="string" not-null="true"/>
+        <property name="message" column="message" type="text" not-null="true"/>
+        <property name="relatedContentId" column="related_content_id" type="long"/>
+        <property name="read" column="is_read" type="boolean" not-null="true"/>
+        <property name="createdAt" column="created_at" type="java.time.LocalDateTime" not-null="true"/>
+    </class>
 </hibernate-mapping>

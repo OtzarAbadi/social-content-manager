@@ -1,0 +1,11 @@
+package com.otzar.sscm.entities;
+
+public enum NotificationType {
+    CONTENT_CREATED,
+    CONTENT_WAITING_APPROVAL,
+    CONTENT_APPROVED,
+    CONTENT_REJECTED,
+    CONTENT_RESUBMITTED,
+    CONTENT_PUBLISHED,
+    COMMENT_ADDED
+}

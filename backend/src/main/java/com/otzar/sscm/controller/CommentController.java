@@ -6,6 +6,7 @@ import com.otzar.sscm.entities.User;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.CommentService;
 import com.otzar.sscm.service.ContentService;
+import com.otzar.sscm.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -27,11 +28,14 @@ public class CommentController {
     private final CommentService commentService;
     private final ContentService contentService;
     private final AuthService authService;
+    private final NotificationService notificationService;
 
-    public CommentController(CommentService commentService, ContentService contentService, AuthService authService) {
+    public CommentController(CommentService commentService, ContentService contentService, AuthService authService,
+                             NotificationService notificationService) {
         this.commentService = commentService;
         this.contentService = contentService;
         this.authService = authService;
+        this.notificationService = notificationService;
     }
 
     @PostMapping
@@ -53,8 +57,12 @@ public class CommentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        comment.setUserId(currentUser.get().getUser_id());
-        return ResponseEntity.status(HttpStatus.CREATED).body(commentService.create(comment));
+        User actor = currentUser.get();
+        comment.setUserId(actor.getUser_id());
+        Comment created = commentService.create(comment);
+        notificationService.notifyOppositeParty(content.get(), actor,
+                "נוספה תגובה לתוכן ‘" + content.get().getTitle() + "’: " + created.getCommentText());
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
