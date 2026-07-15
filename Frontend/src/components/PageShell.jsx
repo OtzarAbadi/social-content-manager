@@ -1,4 +1,4 @@
-function PageShell({ activeRoute, routes, onNavigate, children }) {
+function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout, children }) {
   return (
     <main className="app-shell" dir="rtl">
       <header className="topbar">
@@ -7,8 +7,9 @@ function PageShell({ activeRoute, routes, onNavigate, children }) {
           <h1>סטודיו פלואו</h1>
         </div>
 
+        {isAuthenticated && (
         <nav className="page-tabs" aria-label="עמודים">
-          {Object.entries(routes).map(([routeKey, route]) => (
+          {Object.entries(routes).filter(([routeKey]) => routeKey !== 'login').map(([routeKey, route]) => (
             <a
               className={activeRoute === routeKey ? 'active' : ''}
               href={route.path}
@@ -18,7 +19,9 @@ function PageShell({ activeRoute, routes, onNavigate, children }) {
               {route.label}
             </a>
           ))}
+          <button type="button" onClick={onLogout}>התנתקות</button>
         </nav>
+        )}
       </header>
 
       {children}

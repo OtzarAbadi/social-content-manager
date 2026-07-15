@@ -3,7 +3,7 @@ import { useState } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 
-function LoginPage({ activeRoute, routes, onNavigate }) {
+function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthenticated, onLogout }) {
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -34,7 +34,7 @@ function LoginPage({ activeRoute, routes, onNavigate }) {
                         sameSite: "strict"
                     });
 
-                    onNavigate("dashboard");
+                    onAuthenticated();
 
                 } else {
                     setErrorMessage("שם משתמש או סיסמה שגויים");
@@ -50,6 +50,8 @@ function LoginPage({ activeRoute, routes, onNavigate }) {
             activeRoute={activeRoute}
             routes={routes}
             onNavigate={onNavigate}
+            isAuthenticated={isAuthenticated}
+            onLogout={onLogout}
         >
 
             <section className="login-page" aria-labelledby="login-title">

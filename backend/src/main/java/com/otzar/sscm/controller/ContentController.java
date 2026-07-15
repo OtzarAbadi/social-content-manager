@@ -10,6 +10,7 @@ import com.otzar.sscm.service.ContentService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
 import com.otzar.sscm.models.RejectContentRequest;
+import com.otzar.sscm.models.UpdateScheduleRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -275,6 +276,26 @@ public class ContentController {
         }
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/schedule")
+    public ResponseEntity<Content> updateSchedule(@PathVariable Long id,
+                                                  @RequestBody UpdateScheduleRequest request,
+                                                  @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!authService.isAdmin(currentUser.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        if (request == null || request.getPlannedPublishDate() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return contentService.updatePlannedPublishDate(id, request.getPlannedPublishDate())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}/status")

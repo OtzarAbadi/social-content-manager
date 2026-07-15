@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.mock.web.MockMultipartFile;
 
 import javax.servlet.http.Cookie;
+import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.empty;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -233,6 +234,37 @@ class SocialContentManagerApplicationTests {
 
         mockMvc.perform(get("/contents/{id}", content.getContent_id()).cookie(clientCookie))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanUpdateOnlyThePlannedPublishDate() throws Exception {
+        Content content = createContent(ContentStatus.DRAFT);
+
+        mockMvc.perform(put("/contents/{id}/schedule", content.getContent_id())
+                        .cookie(adminCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"plannedPublishDate\":\"2026-08-12T15:45:00\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.plannedPublishDate").value("2026-08-12T15:45:00"))
+                .andExpect(jsonPath("$.title").value(content.getTitle()))
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+    }
+
+    @Test
+    void clientCannotUpdateSchedule() throws Exception {
+        Content content = createContent(ContentStatus.DRAFT);
+        content.setPlannedPublishDate(LocalDateTime.of(2026, 8, 1, 10, 0));
+        contentRepository.save(content);
+
+        mockMvc.perform(put("/contents/{id}/schedule", content.getContent_id())
+                        .cookie(clientCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"plannedPublishDate\":\"2026-08-12T15:45:00\"}"))
+                .andExpect(status().isForbidden());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                LocalDateTime.of(2026, 8, 1, 10, 0),
+                contentRepository.findById(content.getContent_id()).orElseThrow().getPlannedPublishDate());
     }
 
     private Content createContent(ContentStatus status) {

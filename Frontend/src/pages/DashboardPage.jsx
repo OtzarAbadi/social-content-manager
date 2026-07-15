@@ -104,7 +104,7 @@ function getProfileInitials(profile) {
   return parts.slice(0, 2).map((part) => part.charAt(0)).join('')
 }
 
-function DashboardPage({ activeRoute, routes, onNavigate }) {
+function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
   const [activePanel, setActivePanel] = useState('contents')
   const [profile, setProfile] = useState({
     id: '',
@@ -791,7 +791,7 @@ function DashboardPage({ activeRoute, routes, onNavigate }) {
   }
 
   return (
-    <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate}>
+    <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
       <section className="dashboard-layout">
         <aside className="manager-panel dashboard-summary">
           <div className="manager-photo" aria-hidden="true">
