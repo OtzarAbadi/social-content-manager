@@ -1,130 +1,64 @@
+import { useState } from 'react'
+import axios from 'axios'
+import Cookies from 'js-cookie'
 import PageShell from '../components/PageShell.jsx'
-import { useState } from "react";
-import axios from "axios";
-import Cookies from "js-cookie";
 
 function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthenticated, onLogout }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const isLoginDisabled = !username.trim() || !password.trim() || loading
 
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [errorMessage, setErrorMessage] = useState('');
+  async function handleLogin(event) {
+    event.preventDefault()
+    if (isLoginDisabled) return
+    setLoading(true)
+    setErrorMessage('')
+    try {
+      const response = await axios.post('http://localhost:8081/users/login', { username, password }, { withCredentials: true })
+      if (!response.data.success) {
+        setErrorMessage('שם המשתמש או הסיסמה אינם נכונים')
+        return
+      }
+      Cookies.set('token', response.data.token, {
+        expires: 7,
+        secure: window.location.protocol === 'https:',
+        sameSite: 'strict',
+      })
+      onAuthenticated()
+    } catch {
+      setErrorMessage('לא הצלחנו להתחבר כרגע. נסו שוב בעוד רגע.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    // הכפתור יהיה מושבת אם אחד השדות ריק
-    const isLoginDisabled = !username.trim() || !password.trim();
-
-    const handleLogin = () => {
-
-        axios.post(
-            "http://localhost:8081/users/login",
-            {
-                username,
-                password
-            },
-            {
-                withCredentials: true
-            }
-        )
-            .then(response => {
-
-                if (response.data.success) {
-
-                    Cookies.set("token", response.data.token, {
-                        expires: 7,
-                        secure: window.location.protocol === "https:",
-                        sameSite: "strict"
-                    });
-
-                    onAuthenticated();
-
-                } else {
-                    setErrorMessage("שם משתמש או סיסמה שגויים");
-                }
-            })
-            .catch(() => {
-                setErrorMessage("שגיאה בהתחברות לשרת");
-            });
-    };
-
-    return (
-        <PageShell
-            activeRoute={activeRoute}
-            routes={routes}
-            onNavigate={onNavigate}
-            isAuthenticated={isAuthenticated}
-            onLogout={onLogout}
-        >
-
-            <section className="login-page" aria-labelledby="login-title">
-
-                <div className="login-card">
-
-                    <p className="eyebrow">סביבת עבודה ללקוחות</p>
-
-                    <h2 id="login-title">כניסה</h2>
-
-                    <p className="login-note">
-                        התחברות למערכת
-                    </p>
-
-                    <form
-                        className="field-stack"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-
-                            if (!isLoginDisabled) {
-                                handleLogin();
-                            }
-                        }}
-                    >
-
-                        <label>
-                            אימייל שם משתמש
-                            <input
-                                type="text"
-                                placeholder="הקלד שם משתמש"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                            />
-                        </label>
-
-                        <label>
-                            סיסמה
-
-                            <input
-                                type="password"
-                                placeholder="הקלד סיסמה"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </label>
-
-                        {errorMessage && (
-                            <p className="login-error">
-                                {errorMessage}
-                            </p>
-                        )}
-
-                        <button
-                            className="login-button"
-                            type="submit"
-                            disabled={isLoginDisabled}
-                            style={{
-                                backgroundColor: isLoginDisabled ? "#999999" : "",
-                                cursor: isLoginDisabled ? "not-allowed" : "pointer",
-                                opacity: isLoginDisabled ? 0.6 : 1
-                            }}
-                        >
-                            התחברות
-                        </button>
-
-                    </form>
-
-                </div>
-
-            </section>
-
-        </PageShell>
-    );
+  return (
+    <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
+      <section className="login-page" aria-labelledby="login-title">
+        <div className="login-visual" aria-hidden="true">
+          <div className="login-visual-content"><span className="brand-mark brand-mark-large">S</span><h1>התוכן שלכם.<br />מתוכנן חכם.</h1><p>ניהול, אישור ותזמון של כל התוכן החברתי במקום אחד.</p></div>
+          <div className="visual-orb visual-orb-one" /><div className="visual-orb visual-orb-two" />
+        </div>
+        <div className="login-panel">
+          <div className="login-card">
+            <div className="login-brand"><span className="brand-mark">S</span><strong>SSCM</strong></div>
+            <p className="eyebrow">ברוכים הבאים</p>
+            <h2 id="login-title">כניסה לחשבון</h2>
+            <p className="login-note">הזינו את פרטי החשבון כדי להמשיך למרחב העבודה.</p>
+            <form className="field-stack" onSubmit={handleLogin}>
+              <label>שם משתמש<span className="input-with-icon"><i aria-hidden="true">♙</i><input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="שם המשתמש שלך" required /></span></label>
+              <label>סיסמה<span className="input-with-icon"><i aria-hidden="true">◈</i><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="הסיסמה שלך" required /><button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'הסתרת סיסמה' : 'הצגת סיסמה'}>{showPassword ? '◉' : '◎'}</button></span></label>
+              {errorMessage && <p className="login-error" role="alert">{errorMessage}</p>}
+              <button className="login-button" type="submit" disabled={isLoginDisabled}>{loading ? <><span className="button-spinner" /> מתחבר...</> : 'כניסה למערכת'}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </PageShell>
+  )
 }
 
-export default LoginPage;
+export default LoginPage

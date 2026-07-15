@@ -14,6 +14,21 @@ const routes = {
     label: 'דשבורד',
     Component: DashboardPage,
   },
+  content: {
+    path: '/content',
+    label: 'תוכן',
+    Component: DashboardPage,
+  },
+  clients: {
+    path: '/clients',
+    label: 'לקוחות',
+    Component: DashboardPage,
+  },
+  messages: {
+    path: '/messages',
+    label: 'הודעות',
+    Component: DashboardPage,
+  },
   calendar: {
     path: '/calendar',
     label: 'לוח שנה',

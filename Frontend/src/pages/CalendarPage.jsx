@@ -6,17 +6,11 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import heLocale from '@fullcalendar/core/locales/he'
 import PageShell from '../components/PageShell.jsx'
+import StatusBadge from '../components/StatusBadge.jsx'
+import statusDesign from '../components/statusDesign.js'
 
 const API_BASE_URL = 'http://localhost:8081'
 const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true })
-
-const statusMeta = {
-  DRAFT: { label: 'טיוטה', color: '#7b8587' },
-  WAITING_APPROVAL: { label: 'ממתין לאישור', color: '#e88b22' },
-  APPROVED: { label: 'מאושר', color: '#2878bd' },
-  REJECTED: { label: 'נדחה', color: '#cc4242' },
-  PUBLISHED: { label: 'פורסם', color: '#278b61' },
-}
 
 function idOf(content) { return content.content_id ?? content.contentId }
 function clientIdOf(content) { return content.clientId ?? content.client_id }
@@ -68,7 +62,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
   ])), [clients])
   const scheduled = useMemo(() => contents.filter((content) => content.plannedPublishDate), [contents])
   const events = useMemo(() => scheduled.map((content) => {
-    const meta = statusMeta[content.status] ?? statusMeta.DRAFT
+    const meta = statusDesign[content.status] ?? statusDesign.DRAFT
     const businessName = clientNames.get(Number(clientIdOf(content)))
     return {
       id: String(idOf(content)),
@@ -97,12 +91,19 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
   const plannedDate = selected?.plannedPublishDate ? new Date(selected.plannedPublishDate) : null
   const selectedClient = selected ? clientNames.get(Number(clientIdOf(selected))) : ''
 
+  useEffect(() => {
+    if (!selected) return
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setSelected(null) }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [selected])
+
   return (
     <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
       <section className="calendar-card" aria-labelledby="calendar-title">
         <div className="calendar-heading">
           <div><p className="eyebrow">תכנון ופרסום</p><h2 id="calendar-title">לוח תוכן</h2></div>
-          {isAdmin && profile && <span className="calendar-permission">גרירה פעילה למנהלים</span>}
+          {profile && <span className="calendar-permission">{isAdmin ? '↔ גרירה פעילה למנהלים' : '◉ תצוגה לקריאה בלבד'}</span>}
         </div>
         {notice && <p className="calendar-notice" role="status">{notice}</p>}
         {error && <div className="calendar-error" role="alert">{error} <button type="button" onClick={loadCalendar}>טעינה מחדש</button></div>}
@@ -133,7 +134,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
       {selected && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelected(null)}>
         <section className="calendar-modal" role="dialog" aria-modal="true" aria-labelledby="event-title" onMouseDown={(event) => event.stopPropagation()}>
           <button className="modal-close" type="button" aria-label="סגירה" onClick={() => setSelected(null)}>×</button>
-          <span className="status-badge" style={{ '--status-color': (statusMeta[selected.status] ?? statusMeta.DRAFT).color }}>{(statusMeta[selected.status] ?? statusMeta.DRAFT).label}</span>
+          <StatusBadge status={selected.status} />
           <h2 id="event-title">{selected.title}</h2>
           <p className="calendar-description">{selected.description || 'לא נוסף תיאור.'}</p>
           <dl className="event-details">

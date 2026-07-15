@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap');
 
 :root {
-  --ink: #17211f;
-  --muted: #60706b;
-  --line: #dce8e4;
-  --paper: #f8fbfa;
-  --mint: #ccefe7;
-  --teal: #118b7e;
-  --coral: #ff7a59;
-  --sun: #ffd166;
+  --ink: #2F2923;
+  --muted: #6D6258;
+  --line: #E4D8C9;
+  --paper: #F8F4EE;
+  --mint: #F6EDE1;
+  --teal: #C8A77B;
+  --coral: #D8BE9B;
+  --sun: #EEDFCB;
   --ui: 'Heebo', 'Noto Sans Hebrew', 'Rubik', 'Assistant', 'Segoe UI', Arial,
     sans-serif;
   --display: var(--ui);
@@ -18,7 +18,7 @@
   background:
     linear-gradient(90deg, rgba(23, 33, 31, 0.035) 1px, transparent 1px),
     linear-gradient(180deg, rgba(23, 33, 31, 0.035) 1px, transparent 1px),
-    linear-gradient(135deg, #f5fcf9 0%, #eef7ff 44%, #fff5f1 100%);
+    linear-gradient(135deg, #F8F4EE 0%, #F2EBE2 48%, #F8F4EE 100%);
   background-size:
     42px 42px,
     42px 42px,

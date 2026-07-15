@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import PageShell from '../components/PageShell.jsx'
+import StatusBadge from '../components/StatusBadge.jsx'
 
 const api = axios.create({
   baseURL: 'http://localhost:8081',
@@ -104,8 +105,9 @@ function getProfileInitials(profile) {
   return parts.slice(0, 2).map((part) => part.charAt(0)).join('')
 }
 
+const routeByPanel = { contents: 'content', clients: 'clients', comments: 'messages' }
+
 function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
-  const [activePanel, setActivePanel] = useState('contents')
   const [profile, setProfile] = useState({
     id: '',
     clientId: '',
@@ -178,10 +180,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const waitingApprovalCount = useMemo(() => {
     return contents.filter((content) => content.status === 'WAITING_APPROVAL').length
   }, [contents])
+  const statusCounts = useMemo(() => contents.reduce((counts, content) => {
+    counts[content.status] = (counts[content.status] || 0) + 1
+    return counts
+  }, {}), [contents])
+  const recentContents = useMemo(() => contents.slice(-3).reverse(), [contents])
+  const upcomingContents = useMemo(() => contents
+    .filter((content) => content.plannedPublishDate && new Date(content.plannedPublishDate) >= new Date())
+    .sort((a, b) => new Date(a.plannedPublishDate) - new Date(b.plannedPublishDate))
+    .slice(0, 3), [contents])
 
   const isClient = profile.role === 'CLIENT'
   const isAdmin = !isClient
-  const visiblePanel = isClient && activePanel === 'clients' ? 'contents' : activePanel
+  function navigateToPanel(panel) {
+    onNavigate(routeByPanel[panel])
+  }
 
   const resetResultView = useCallback((section) => {
     setFilteredResults((current) => ({ ...current, [section]: false }))
@@ -304,6 +317,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       isMounted = false
     }
   }, [loadClients, loadComments, loadContents, loadProfile])
+
+  useEffect(() => {
+    if (isClient && activeRoute === 'clients') Promise.resolve().then(() => onNavigate('content'))
+  }, [activeRoute, isClient, onNavigate])
 
   function showNotice(message) {
     setNotice(message)
@@ -529,7 +546,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       const response = await api.get(`/contents/client/${clientId}`)
       setContents(response.data)
       setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
-      setActivePanel('contents')
+      navigateToPanel('contents')
       showFilteredResults('contents')
       showNotice(`נטענו תכנים של לקוח #${clientId}`)
     } catch {
@@ -556,7 +573,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       const response = await api.get(`/contents/status/${status}`)
       setContents(response.data)
       setContentFilter((current) => ({ ...current, status }))
-      setActivePanel('contents')
+      navigateToPanel('contents')
       showFilteredResults('contents')
       showNotice(`נטענו תכנים בסטטוס ${statusLabelByValue[status]}`)
     } catch {
@@ -738,7 +755,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
         ...current,
         contentId: String(contentId),
       }))
-      setActivePanel('comments')
+      navigateToPanel('comments')
       showFilteredResults('comments')
       showNotice(`נטענו תגובות לתוכן #${contentId}`)
     } catch {
@@ -793,13 +810,13 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   return (
     <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
       <section className="dashboard-layout">
-        <aside className="manager-panel dashboard-summary">
+        {activeRoute === 'dashboard' && <aside className="manager-panel dashboard-summary">
           <div className="manager-photo" aria-hidden="true">
             {getProfileInitials(profile)}
           </div>
 
           <p className="eyebrow">ניהול תוכן ולקוחות</p>
-          <h2>{profile.fullName || 'משתמש מחובר'}</h2>
+          <h2>{isClient && profile.clientId ? getClientName(profile.clientId) : (profile.fullName || 'משתמש מחובר')}</h2>
           <p>{profile.username || 'שם משתמש'}</p>
           <p>{profile.email || 'אימייל'}</p>
           {profile.role && (
@@ -824,8 +841,12 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 <span>ממתינים</span>
               </div>
               <div>
-                <strong>{comments.length}</strong>
-                <span>תגובות</span>
+                <strong>{statusCounts.APPROVED || 0}</strong>
+                <span>מאושרים</span>
+              </div>
+              <div>
+                <strong>{statusCounts.PUBLISHED || 0}</strong>
+                <span>פורסמו</span>
               </div>
             </div>
           )}
@@ -833,41 +854,30 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
           {isClient && (
             <div className="summary-metrics client-summary-metrics">
               <div>
-                <strong>{comments.length}</strong>
-                <span>תגובות</span>
+                <strong>{waitingApprovalCount}</strong><span>ממתינים</span>
+              </div>
+              <div>
+                <strong>{statusCounts.APPROVED || 0}</strong><span>מאושרים</span>
+              </div>
+              <div>
+                <strong>{statusCounts.REJECTED || 0}</strong><span>נדחו</span>
+              </div>
+              <div>
+                <strong>{statusCounts.PUBLISHED || 0}</strong><span>פורסמו</span>
               </div>
             </div>
           )}
-        </aside>
+        </aside>}
 
         <section className="workspace-panel">
-          <div className="workspace-tabs" aria-label="אזורי ניהול">
-            {isAdmin && (
-              <button
-                className={visiblePanel === 'clients' ? 'active' : ''}
-                type="button"
-                onClick={() => setActivePanel('clients')}
-              >
-                לקוחות
-              </button>
-            )}
-            <button
-              className={visiblePanel === 'contents' ? 'active' : ''}
-              type="button"
-              onClick={() => setActivePanel('contents')}
-            >
-              תכנים
-            </button>
-            <button
-              className={visiblePanel === 'comments' ? 'active' : ''}
-              type="button"
-              onClick={() => setActivePanel('comments')}
-            >
-              תגובות
-            </button>
-          </div>
-
-          {notice && (
+          {activeRoute === 'dashboard' && <section className="dashboard-overview" aria-label="סקירת פעילות">
+            <div className="overview-heading"><div><p className="eyebrow">סקירה מהירה</p><h2>{isAdmin ? 'מה קורה עכשיו' : `שלום, ${profile.fullName || 'טוב שחזרת'}`}</h2></div>{isAdmin && <button type="button" className="primary-button" onClick={() => { navigateToPanel('contents'); setShowCreateForm((current) => ({ ...current, contents: true })) }}>+ תוכן חדש</button>}</div>
+            <div className="overview-columns">
+              <div className="overview-card"><h3>תוכן אחרון</h3>{recentContents.length ? recentContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => navigateToPanel('contents')}><span>{content.title}</span><StatusBadge status={content.status} /></button>) : <p>אין עדיין תכנים להצגה</p>}</div>
+              <div className="overview-card"><h3>פרסומים קרובים</h3>{upcomingContents.length ? upcomingContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => onNavigate('calendar')}><span>{content.title}</span><time>{new Date(content.plannedPublishDate).toLocaleDateString('he-IL')}</time></button>) : <p>אין פרסומים מתוכננים בקרוב</p>}</div>
+            </div>
+          </section>}
+          {activeRoute !== 'dashboard' && notice && (
             <div className="notice-bar">
               <span>{notice}</span>
               <button type="button" onClick={() => setNotice('')}>
@@ -876,7 +886,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
             </div>
           )}
 
-          {isAdmin && visiblePanel === 'clients' && (
+          {isAdmin && activeRoute === 'clients' && (
             <section className="management-section" aria-labelledby="clients-title">
               <div className="management-header">
                 <div>
@@ -1120,7 +1130,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
             </section>
           )}
 
-          {visiblePanel === 'contents' && (
+          {activeRoute === 'content' && (
             <section className="management-section" aria-labelledby="contents-title">
               <div className="management-header">
                 <div>
@@ -1233,9 +1243,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         <div className="entity-details">
                           <div className="entity-title-row">
                             <h3>{content.title}</h3>
-                            <span className={`status-pill status-${content.status || 'DRAFT'}`}>
-                              {statusLabelByValue[content.status] || content.status || 'טיוטה'}
-                            </span>
+                            <StatusBadge status={content.status} />
                           </div>
 
                           {isEditing ? (
@@ -1496,7 +1504,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
             </section>
           )}
 
-          {visiblePanel === 'comments' && (
+          {activeRoute === 'messages' && (
             <section className="management-section" aria-labelledby="comments-title">
               <div className="management-header">
                 <div>
