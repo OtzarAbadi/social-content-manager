@@ -2,6 +2,7 @@ package com.otzar.sscm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.otzar.sscm.entities.Client;
+import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 
 import static org.hamcrest.Matchers.empty;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -316,6 +318,60 @@ class SocialContentManagerApplicationTests {
     }
 
     @Test
+    void adminDeletesExistingComment() throws Exception {
+        Comment comment = createComment(2L);
+
+        mockMvc.perform(delete("/comments/{id}", comment.getCommentId()).cookie(adminCookie))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void clientDeletesOwnComment() throws Exception {
+        Comment comment = createComment(2L);
+
+        mockMvc.perform(delete("/comments/{id}", comment.getCommentId()).cookie(clientCookie))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void clientCannotDeleteAnotherUsersComment() throws Exception {
+        Comment comment = createComment(3L);
+
+        mockMvc.perform(delete("/comments/{id}", comment.getCommentId()).cookie(clientCookie))
+                .andExpect(status().isForbidden());
+
+        org.junit.jupiter.api.Assertions.assertTrue(commentRepository.findById(comment.getCommentId()).isPresent());
+    }
+
+    @Test
+    void unauthenticatedCommentDeletionIsUnauthorized() throws Exception {
+        Comment comment = createComment(2L);
+
+        mockMvc.perform(delete("/comments/{id}", comment.getCommentId()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deletingMissingCommentReturnsNotFound() throws Exception {
+        mockMvc.perform(delete("/comments/{id}", Long.MAX_VALUE).cookie(adminCookie))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletedCommentCanNoLongerBeRetrieved() throws Exception {
+        Comment comment = createComment(2L);
+
+        mockMvc.perform(delete("/comments/{id}", comment.getCommentId()).cookie(clientCookie))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/comments/by-content")
+                        .param("contentId", comment.getContentId().toString())
+                        .cookie(clientCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", empty()));
+    }
+
+    @Test
     void notificationOwnerCanMarkReadButOtherUserCannot() throws Exception {
         Content content = createContent(ContentStatus.DRAFT);
         mockMvc.perform(put("/contents/{id}/send-for-approval", content.getContent_id()).cookie(adminCookie))
@@ -347,6 +403,15 @@ class SocialContentManagerApplicationTests {
 
     private Content createContent(ContentStatus status) {
         return createContentForUser(2L, status);
+    }
+
+    private Comment createComment(Long userId) {
+        Content content = createContentForUser(userId, ContentStatus.DRAFT);
+        Comment comment = new Comment();
+        comment.setContentId(content.getContent_id());
+        comment.setUserId(userId);
+        comment.setCommentText("Comment deletion test");
+        return commentRepository.save(comment);
     }
 
     private Content createContentForUser(Long userId, ContentStatus status) {

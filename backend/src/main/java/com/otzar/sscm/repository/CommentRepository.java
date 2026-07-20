@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Transactional
@@ -28,5 +29,13 @@ public class CommentRepository {
 
     public List<Comment> getCommentsByContentId(Long contentId) {
         return persist.loadListByParameter("FROM Comment WHERE contentId = :contentId", "contentId", contentId, Comment.class);
+    }
+
+    public Optional<Comment> findById(Long commentId) {
+        return Optional.ofNullable(persist.loadObject(Comment.class, commentId));
+    }
+
+    public void delete(Comment comment) {
+        persist.remove(comment);
     }
 }
