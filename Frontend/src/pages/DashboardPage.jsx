@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
+import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
 
 const api = axios.create({
   baseURL: 'http://localhost:8081',
@@ -171,6 +172,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [notice, setNotice] = useState('')
   const [rejectionDialog, setRejectionDialog] = useState({ contentId: null, reason: '' })
   const [rejecting, setRejecting] = useState(false)
+  const [historyContent, setHistoryContent] = useState(null)
 
   const clientById = useMemo(() => {
     return new Map(clients.map((client) => [Number(getClientId(client)), client]))
@@ -1393,6 +1395,15 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                               >
                                 תגובות
                               </button>
+                              {(isAdmin || isClient) && (
+                                <button
+                                  type="button"
+                                  className="ghost-button small-button"
+                                  onClick={() => setHistoryContent(content)}
+                                >
+                                  היסטוריית גרסאות
+                                </button>
+                              )}
                               {isAdmin && (
                                 <button
                                   type="button"
@@ -1605,6 +1616,13 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
           )}
         </section>
       </section>
+      {historyContent && (
+        <ContentVersionHistoryModal
+          key={getContentId(historyContent)}
+          content={historyContent}
+          onClose={() => setHistoryContent(null)}
+        />
+      )}
       {rejectionDialog.contentId !== null && (
         <div className="modal-backdrop" role="presentation">
           <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
