@@ -3,6 +3,7 @@ import axios from 'axios'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
+import CaptionGenerator from '../components/CaptionGenerator.jsx'
 
 const api = axios.create({
   baseURL: 'http://localhost:8081',
@@ -1306,6 +1307,15 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                   onChange={handleContentDraftChange}
                                 />
                               </label>
+                              {isAdmin && (
+                                <CaptionGenerator
+                                  key={`edit-caption-${contentId}`}
+                                  title={contentDraft.title}
+                                  contentType={contentDraft.content_type}
+                                  description={contentDraft.description}
+                                  onApply={(caption) => setContentDraft((current) => ({ ...current, description: caption }))}
+                                />
+                              )}
                             </div>
                           ) : (
                             <>
@@ -1499,6 +1509,15 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                             onChange={handleContentFormChange}
                           />
                         </label>
+                        {isAdmin && (
+                          <CaptionGenerator
+                            key="create-caption"
+                            title={contentForm.title}
+                            contentType={contentForm.content_type}
+                            description={contentForm.description}
+                            onApply={(caption) => setContentForm((current) => ({ ...current, description: caption }))}
+                          />
+                        )}
                       </div>
                       <button className="primary-button" type="submit" disabled={saving.content}>
                         {saving.content ? 'שומר...' : 'שמירת תוכן'}
