@@ -8,6 +8,7 @@ import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -86,6 +87,7 @@ public class ClientService {
         return Optional.of(clientRepository.save(client));
     }
 
+    @Transactional
     public boolean delete(Long id) {
         Optional<Client> existingClient = clientRepository.findById(id);
 
@@ -93,7 +95,17 @@ public class ClientService {
             return false;
         }
 
-        clientRepository.delete(existingClient.get());
+        Client client = existingClient.get();
+        Optional<User> associatedUser = userRepository.findById(client.getUser_id());
+        boolean canDeleteAssociatedUser = associatedUser
+                .filter(user -> "CLIENT".equalsIgnoreCase(user.getRole()))
+                .filter(user -> !userRepository.hasReferencesOutsideClient(user.getUser_id(), client.getClient_id()))
+                .isPresent();
+
+        clientRepository.delete(client);
+        if (canDeleteAssociatedUser) {
+            userRepository.delete(associatedUser.get());
+        }
         return true;
     }
 

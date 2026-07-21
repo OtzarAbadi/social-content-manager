@@ -38,7 +38,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
     return <main className="public-shell" dir="rtl">{children}</main>
   }
 
-  const isAdmin = profile?.role ? profile.role !== 'CLIENT' : false
+  const isAdmin = profile?.role === 'ADMIN'
 
   return (
     <div className="authenticated-shell" dir="rtl">

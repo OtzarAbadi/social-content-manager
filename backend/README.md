@@ -1,27 +1,64 @@
-# Backend
+# Social Content Manager
 
-The default runtime profile is `production`, configured in `src/main/resources/application.properties`.
-With that profile active, Spring Boot also loads `src/main/resources/application-production.properties`.
+Backend for the SSCM Admin/Client content-management application.
 
-## Local MySQL
+## Prerequisites
 
-The application expects a local MySQL database named `social_content_manager` by default:
+- Java 17
+- MySQL 8
+- Node.js and npm for the frontend
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/social_content_manager?useSSL=false&allowPublicKeyRetrieval=true
-spring.datasource.username=root
-spring.datasource.password=
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+## Database
+
+The default database name is `social_content_manager`. Create and seed it with `database/init.sql`.
+
+The production profile reads these optional environment variables:
+
+- `SPRING_DATASOURCE_URL` (defaults to `jdbc:mysql://localhost:3306/social_content_manager`)
+- `SPRING_DATASOURCE_USERNAME` (defaults to `root`)
+- `SPRING_DATASOURCE_PASSWORD` (empty by default)
+
+Do not store real credentials in source control. Seed and newly created user passwords are BCrypt-hashed in storage.
+
+## Run locally
+
+The frontend currently calls the backend on port `8081`:
+
+```powershell
+$env:SERVER_PORT=8081
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=production
 ```
 
-If your local MySQL `root` user has a password, set it with `SPRING_DATASOURCE_PASSWORD`
-or update `spring.datasource.password` in `application-production.properties`.
-The `YOUR_PASSWORD` value in `application-example.properties` is only a placeholder.
+Run the frontend on Vite's default port `5173`:
 
-To recreate and seed the local database, run:
-
-```sql
-SOURCE database/init.sql;
+```powershell
+cd ..\Frontend
+npm.cmd install
+npm.cmd run dev
 ```
 
-You can also execute `database/init.sql` with any MySQL client from the `backend` directory.
+Demo users created by `database/init.sql`:
+
+- Admin: `admin` / `123456`
+- Client: `client1` / `123456`
+- Client: `client2` / `123456`
+
+These credentials are for local demonstration only.
+
+## Current main features
+
+- Admin and Client access control
+- Client and content management
+- Image/video upload and preview
+- Scheduling with monthly/weekly drag-and-drop calendar
+- Approval, rejection, resubmission, and publishing-status workflow
+- Content comments and in-app notifications
+- Backend Bean Validation and BCrypt password storage
+
+## Tests
+
+```powershell
+.\mvnw.cmd test
+```
+
+On some Windows environments the wrapper bootstrap may fail with `Cannot start maven from wrapper`. Retry the command, use `mvn test` when Maven is installed, or run `mvn.cmd test` from the Maven distribution already installed under `%USERPROFILE%\.m2\wrapper\dists`.

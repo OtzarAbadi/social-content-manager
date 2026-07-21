@@ -50,4 +50,30 @@ public class UserRepository {
         persist.save(user);
         return user;
     }
+
+    public boolean hasReferencesOutsideClient(Long userId, Long clientId) {
+        Long otherClients = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Client WHERE user_id = :userId AND client_id <> :clientId", Long.class)
+                .setParameter("userId", userId)
+                .setParameter("clientId", clientId)
+                .uniqueResult();
+        Long admins = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Admin WHERE userId = :userId", Long.class)
+                .setParameter("userId", userId)
+                .uniqueResult();
+        Long comments = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Comment WHERE userId = :userId", Long.class)
+                .setParameter("userId", userId)
+                .uniqueResult();
+        Long notifications = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Notification WHERE userId = :userId", Long.class)
+                .setParameter("userId", userId)
+                .uniqueResult();
+
+        return otherClients > 0 || admins > 0 || comments > 0 || notifications > 0;
+    }
+
+    public void delete(User user) {
+        persist.remove(user);
+    }
 }

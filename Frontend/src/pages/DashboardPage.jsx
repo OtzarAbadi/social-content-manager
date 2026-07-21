@@ -60,7 +60,6 @@ function getMediaKind(content) {
 
 const emptyCommentForm = {
   contentId: '',
-  userId: '',
   commentText: '',
 }
 
@@ -191,7 +190,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     .slice(0, 3), [contents])
 
   const isClient = profile.role === 'CLIENT'
-  const isAdmin = !isClient
+  const isAdmin = profile.role === 'ADMIN'
   function navigateToPanel(panel) {
     onNavigate(routeByPanel[panel])
   }
@@ -222,10 +221,6 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     try {
       const response = await api.get('/users/me')
       setProfile(response.data)
-      setCommentForm((current) => ({
-        ...current,
-        userId: current.userId || String(response.data.id ?? ''),
-      }))
     } catch {
       setErrors((current) => ({
         ...current,

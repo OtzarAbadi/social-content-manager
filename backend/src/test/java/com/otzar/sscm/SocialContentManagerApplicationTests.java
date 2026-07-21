@@ -8,6 +8,7 @@ import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.ContentRepository;
 import com.otzar.sscm.repository.NotificationRepository;
+import com.otzar.sscm.repository.UserRepository;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.repository.CommentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,9 @@ class SocialContentManagerApplicationTests {
 
     @Autowired
     private NotificationRepository notificationRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -355,6 +359,43 @@ class SocialContentManagerApplicationTests {
     void deletingMissingCommentReturnsNotFound() throws Exception {
         mockMvc.perform(delete("/comments/{id}", Long.MAX_VALUE).cookie(adminCookie))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletingClientRemovesUnreferencedClientUser() throws Exception {
+        String username = "delete-client-user-" + java.util.UUID.randomUUID();
+        mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"businessName\":\"Disposable Client\",\"fullName\":\"Disposable Client\","
+                                + "\"email\":\"" + username + "@example.com\",\"username\":\"" + username
+                                + "\",\"password\":\"password\"}"))
+                .andExpect(status().isCreated());
+
+        com.otzar.sscm.entities.User user = userRepository.findByUsername(username).orElseThrow();
+        Client client = clientRepository.findByUserId(user.getUser_id()).orElseThrow();
+
+        mockMvc.perform(delete("/clients/{id}", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isNoContent());
+
+        org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(user.getUser_id()).isEmpty());
+    }
+
+    @Test
+    void deletingMissingClientReturnsNotFound() throws Exception {
+        mockMvc.perform(delete("/clients/{id}", Long.MAX_VALUE).cookie(adminCookie))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletingClientNeverDeletesAdminUser() throws Exception {
+        Client client = new Client();
+        client.setUser_id(1L);
+        client.setBusiness_name("Admin-linked client record");
+        clientRepository.save(client);
+
+        mockMvc.perform(delete("/clients/{id}", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isNoContent());
+
+        org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(1L).isPresent());
     }
 
     @Test

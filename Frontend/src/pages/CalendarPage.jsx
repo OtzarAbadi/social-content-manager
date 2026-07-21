@@ -37,7 +37,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
     setError('')
     try {
       const meResponse = await api.get('/users/me')
-      const isAdmin = meResponse.data.role !== 'CLIENT'
+      const isAdmin = meResponse.data.role === 'ADMIN'
       const [contentResponse, clientResponse] = await Promise.all([
         api.get('/contents'),
         isAdmin ? api.get('/clients') : Promise.resolve({ data: [] }),
@@ -56,7 +56,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
     Promise.resolve().then(loadCalendar)
   }, [loadCalendar])
 
-  const isAdmin = profile?.role !== 'CLIENT'
+  const isAdmin = profile?.role === 'ADMIN'
   const clientNames = useMemo(() => new Map(clients.map((client) => [
     Number(client.client_id ?? client.clientId), client.business_name ?? client.businessName,
   ])), [clients])
