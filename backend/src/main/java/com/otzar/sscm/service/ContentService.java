@@ -2,6 +2,7 @@ package com.otzar.sscm.service;
 
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
+import com.otzar.sscm.entities.ContentVersionChangeType;
 import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.CommentRepository;
@@ -22,12 +23,14 @@ public class ContentService {
     private final ContentRepository contentRepository;
     private final ClientRepository clientRepository;
     private final CommentRepository commentRepository;
+    private final ContentVersionService contentVersionService;
 
     public ContentService(ContentRepository contentRepository, ClientRepository clientRepository,
-                          CommentRepository commentRepository) {
+                          CommentRepository commentRepository, ContentVersionService contentVersionService) {
         this.contentRepository = contentRepository;
         this.clientRepository = clientRepository;
         this.commentRepository = commentRepository;
+        this.contentVersionService = contentVersionService;
     }
 
     public List<Content> findAll() {
@@ -58,7 +61,13 @@ public class ContentService {
         return contentRepository.findById(id);
     }
 
+    @Transactional
     public ContentOperationResult create(Content content) {
+        return create(content, null);
+    }
+
+    @Transactional
+    public ContentOperationResult create(Content content, Long changedByUserId) {
         if (content.getTitle() == null || content.getTitle().trim().isEmpty()) {
             throw new IllegalArgumentException("Title is required");
         }
@@ -72,10 +81,18 @@ public class ContentService {
         }
 
         content.setStatus(ContentStatus.DRAFT);
-        return ContentOperationResult.success(contentRepository.save(content));
+        Content created = contentRepository.save(content);
+        contentVersionService.createSnapshot(created, changedByUserId, ContentVersionChangeType.CREATED);
+        return ContentOperationResult.success(created);
     }
 
+    @Transactional
     public ContentOperationResult update(Long id, Content request) {
+        return update(id, request, null);
+    }
+
+    @Transactional
+    public ContentOperationResult update(Long id, Content request, Long changedByUserId) {
         Optional<Content> existingContent = contentRepository.findById(id);
 
         if (existingContent.isEmpty()) {
@@ -87,15 +104,34 @@ public class ContentService {
         }
 
         Content content = existingContent.get();
+        ContentVersionService.ContentState before = contentVersionService.capture(content);
         applyRequest(content, request);
 
-        return ContentOperationResult.success(contentRepository.save(content));
+        if (!contentVersionService.hasMeaningfulChanges(before, content)) {
+            return ContentOperationResult.success(content);
+        }
+
+        Content updated = contentRepository.save(content);
+        contentVersionService.createSnapshot(updated, changedByUserId, ContentVersionChangeType.EDITED);
+        return ContentOperationResult.success(updated);
     }
 
+    @Transactional
     public Optional<Content> updatePlannedPublishDate(Long id, LocalDateTime plannedPublishDate) {
+        return updatePlannedPublishDate(id, plannedPublishDate, null);
+    }
+
+    @Transactional
+    public Optional<Content> updatePlannedPublishDate(Long id, LocalDateTime plannedPublishDate,
+                                                      Long changedByUserId) {
         return contentRepository.findById(id).map(content -> {
+            if (java.util.Objects.equals(content.getPlannedPublishDate(), plannedPublishDate)) {
+                return content;
+            }
             content.setPlannedPublishDate(plannedPublishDate);
-            return contentRepository.save(content);
+            Content updated = contentRepository.save(content);
+            contentVersionService.createSnapshot(updated, changedByUserId, ContentVersionChangeType.SCHEDULED);
+            return updated;
         });
     }
 
@@ -110,20 +146,44 @@ public class ContentService {
         return true;
     }
 
+    @Transactional
     public Optional<Content> updateStatus(Long id, String status) {
-        return changeStatus(id, ContentStatus.valueOf(status));
+        return updateStatus(id, status, null);
     }
 
+    @Transactional
+    public Optional<Content> updateStatus(Long id, String status, Long changedByUserId) {
+        return changeStatus(id, ContentStatus.valueOf(status), changedByUserId);
+    }
+
+    @Transactional
     public Optional<Content> sendForApproval(Long id) {
-        return changeStatus(id, ContentStatus.WAITING_APPROVAL);
+        return sendForApproval(id, null);
     }
 
+    @Transactional
+    public Optional<Content> sendForApproval(Long id, Long changedByUserId) {
+        return changeStatus(id, ContentStatus.WAITING_APPROVAL, changedByUserId);
+    }
+
+    @Transactional
     public Optional<Content> approve(Long id) {
-        return changeStatus(id, ContentStatus.APPROVED);
+        return approve(id, null);
     }
 
+    @Transactional
+    public Optional<Content> approve(Long id, Long changedByUserId) {
+        return changeStatus(id, ContentStatus.APPROVED, changedByUserId);
+    }
+
+    @Transactional
     public Optional<Content> reject(Long id) {
-        return changeStatus(id, ContentStatus.REJECTED);
+        return reject(id, null);
+    }
+
+    @Transactional
+    public Optional<Content> reject(Long id, Long changedByUserId) {
+        return changeStatus(id, ContentStatus.REJECTED, changedByUserId);
     }
 
     @Transactional
@@ -132,7 +192,7 @@ public class ContentService {
             throw new IllegalArgumentException("Rejection reason is required");
         }
 
-        Optional<Content> rejectedContent = changeStatus(id, ContentStatus.REJECTED);
+        Optional<Content> rejectedContent = changeStatus(id, ContentStatus.REJECTED, userId);
         rejectedContent.ifPresent(content -> {
             Comment comment = new Comment();
             comment.setContentId(id);
@@ -143,11 +203,17 @@ public class ContentService {
         return rejectedContent;
     }
 
+    @Transactional
     public Optional<Content> publish(Long id) {
-        return changeStatus(id, ContentStatus.PUBLISHED);
+        return publish(id, null);
     }
 
-    private Optional<Content> changeStatus(Long id, ContentStatus newStatus) {
+    @Transactional
+    public Optional<Content> publish(Long id, Long changedByUserId) {
+        return changeStatus(id, ContentStatus.PUBLISHED, changedByUserId);
+    }
+
+    private Optional<Content> changeStatus(Long id, ContentStatus newStatus, Long changedByUserId) {
         Optional<Content> existingContent = contentRepository.findById(id);
 
         if (existingContent.isEmpty()) {
@@ -157,8 +223,14 @@ public class ContentService {
         Content content = existingContent.get();
         validateStatusTransition(content.getStatus(), newStatus);
 
+        if (content.getStatus() == newStatus) {
+            return Optional.of(content);
+        }
+
         content.setStatus(newStatus);
-        return Optional.of(contentRepository.save(content));
+        Content updated = contentRepository.save(content);
+        contentVersionService.createSnapshot(updated, changedByUserId, ContentVersionChangeType.STATUS_CHANGED);
+        return Optional.of(updated);
     }
 
     private void validateStatusTransition(ContentStatus currentStatus, ContentStatus newStatus) {

@@ -6,8 +6,10 @@ import com.otzar.sscm.entities.User;
 import com.otzar.sscm.entities.NotificationType;
 import com.otzar.sscm.models.ApiResponse;
 import com.otzar.sscm.models.CreateContentMultipartRequest;
+import com.otzar.sscm.models.ContentVersionResponse;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.ContentService;
+import com.otzar.sscm.service.ContentVersionService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.NotificationService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
@@ -43,13 +45,16 @@ public class ContentController {
 
     private static final Logger logger = LoggerFactory.getLogger(ContentController.class);
     private final ContentService contentService;
+    private final ContentVersionService contentVersionService;
     private final AuthService authService;
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
 
-    public ContentController(ContentService contentService, AuthService authService,
+    public ContentController(ContentService contentService, ContentVersionService contentVersionService,
+                             AuthService authService,
                              FileStorageService fileStorageService, NotificationService notificationService) {
         this.contentService = contentService;
+        this.contentVersionService = contentVersionService;
         this.authService = authService;
         this.fileStorageService = fileStorageService;
         this.notificationService = notificationService;
@@ -94,6 +99,27 @@ public class ContentController {
         }
 
         return ResponseEntity.ok(content.get());
+    }
+
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<List<ContentVersionResponse>> getContentVersions(
+            @PathVariable Long id,
+            @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Optional<Content> content = contentService.findById(id);
+        if (content.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!authService.canAccessContent(currentUser.get(), content.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(contentVersionService.findHistory(id));
     }
 
     @GetMapping("/by-client")
@@ -219,7 +245,7 @@ public class ContentController {
         ContentOperationResult result;
 
         try {
-            result = contentService.create(content);
+            result = contentService.create(content, currentUser.get().getUser_id());
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.badRequest().body(new ApiResponse(false, ex.getMessage()));
         }
@@ -252,7 +278,7 @@ public class ContentController {
         ContentOperationResult result;
 
         try {
-            result = contentService.update(id, content);
+            result = contentService.update(id, content, currentUser.get().getUser_id());
         } catch (IllegalArgumentException | IllegalStateException ex) {
             return ResponseEntity.badRequest().build();
         }
@@ -299,7 +325,8 @@ public class ContentController {
             return ResponseEntity.badRequest().build();
         }
 
-        return contentService.updatePlannedPublishDate(id, request.getPlannedPublishDate())
+        return contentService.updatePlannedPublishDate(
+                        id, request.getPlannedPublishDate(), currentUser.get().getUser_id())
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -318,7 +345,7 @@ public class ContentController {
         }
 
         if (requestedStatus == ContentStatus.APPROVED) {
-            return clientStatusChange(id, token, () -> contentService.approve(id).map(content -> {
+            return clientStatusChange(id, token, user -> contentService.approve(id, user.getUser_id()).map(content -> {
                 notificationService.notifyAdmin(content, NotificationType.CONTENT_APPROVED,
                         "התוכן אושר", "הלקוח אישר את התוכן ‘" + content.getTitle() + "’");
                 return content;
@@ -340,7 +367,8 @@ public class ContentController {
         }
 
         try {
-            return withStatusNotification(contentService.updateStatus(id, requestedStatus.name()), requestedStatus)
+            return withStatusNotification(contentService.updateStatus(
+                            id, requestedStatus.name(), currentUser.get().getUser_id()), requestedStatus)
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (IllegalArgumentException | IllegalStateException ex) {
@@ -362,7 +390,7 @@ public class ContentController {
         }
 
         ContentStatus previousStatus = contentService.findById(id).map(Content::getStatus).orElse(null);
-        return changeStatus(() -> contentService.sendForApproval(id).map(content -> {
+        return changeStatus(() -> contentService.sendForApproval(id, currentUser.get().getUser_id()).map(content -> {
             NotificationType type = previousStatus == ContentStatus.REJECTED
                     ? NotificationType.CONTENT_RESUBMITTED : NotificationType.CONTENT_WAITING_APPROVAL;
             String title = type == NotificationType.CONTENT_RESUBMITTED ? "התוכן הוגש מחדש" : "תוכן ממתין לאישור";
@@ -374,7 +402,7 @@ public class ContentController {
     @PutMapping("/{id}/approve")
     public ResponseEntity<Content> approve(@PathVariable Long id,
                                            @CookieValue(value = "token", required = false) String token) {
-        return clientStatusChange(id, token, () -> contentService.approve(id).map(content -> {
+        return clientStatusChange(id, token, user -> contentService.approve(id, user.getUser_id()).map(content -> {
             notificationService.notifyAdmin(content, NotificationType.CONTENT_APPROVED,
                     "התוכן אושר", "הלקוח אישר את התוכן ‘" + content.getTitle() + "’");
             return content;
@@ -401,14 +429,14 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(() -> contentService.publish(id).map(content -> {
+        return changeStatus(() -> contentService.publish(id, currentUser.get().getUser_id()).map(content -> {
             notificationService.notifyClient(content, NotificationType.CONTENT_PUBLISHED,
                     "התוכן פורסם", "התוכן ‘" + content.getTitle() + "’ פורסם");
             return content;
         }));
     }
 
-    private ResponseEntity<Content> clientStatusChange(Long id, String token, ContentStatusOperation operation) {
+    private ResponseEntity<Content> clientStatusChange(Long id, String token, ClientContentStatusOperation operation) {
         Optional<User> currentUser = authService.findUserByToken(token);
 
         if (currentUser.isEmpty()) {
@@ -429,7 +457,7 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(operation);
+        return changeStatus(() -> operation.execute(currentUser.get()));
     }
 
     private ResponseEntity<Content> clientRejection(Long id, String token, RejectContentRequest request) {
@@ -490,5 +518,9 @@ public class ContentController {
 
     private interface ContentStatusOperation {
         Optional<Content> execute();
+    }
+
+    private interface ClientContentStatusOperation {
+        Optional<Content> execute(User user);
     }
 }

@@ -42,6 +42,33 @@
         </property>
     </class>
 
+    <class name="com.otzar.sscm.entities.ContentVersion" table="content_versions" mutable="false">
+        <id name="contentVersionId" column="content_version_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="contentId" column="content_id" type="long" not-null="true" unique-key="uk_content_version_number"/>
+        <property name="versionNumber" column="version_number" type="integer" not-null="true" unique-key="uk_content_version_number"/>
+        <property name="title" column="title" type="string" not-null="true"/>
+        <property name="description" column="description" type="text"/>
+        <property name="contentType" column="content_type" type="string" not-null="true"/>
+        <property name="fileUrl" column="file_url" type="string"/>
+        <property name="status" column="status" not-null="true">
+            <type name="org.hibernate.type.EnumType">
+                <param name="enumClass">com.otzar.sscm.entities.ContentStatus</param>
+                <param name="useNamed">true</param>
+            </type>
+        </property>
+        <property name="plannedPublishDate" column="planned_publish_date" type="java.time.LocalDateTime"/>
+        <property name="changedByUserId" column="changed_by_user_id" type="long"/>
+        <property name="changedAt" column="changed_at" type="java.time.LocalDateTime" not-null="true"/>
+        <property name="changeType" column="change_type" not-null="true">
+            <type name="org.hibernate.type.EnumType">
+                <param name="enumClass">com.otzar.sscm.entities.ContentVersionChangeType</param>
+                <param name="useNamed">true</param>
+            </type>
+        </property>
+    </class>
+
     <class name="com.otzar.sscm.entities.Comment" table="comments">
         <id name="commentId" column="comment_id" type="long">
             <generator class="identity"/>
