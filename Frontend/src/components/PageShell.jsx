@@ -10,6 +10,7 @@ const icons = {
 }
 
 const pageTitles = {
+  analytics: 'אנליטיקה',
   dashboard: 'לוח בקרה', calendar: 'לוח תוכן', content: 'ניהול תוכן',
   clients: 'ניהול לקוחות', messages: 'הודעות ותגובות',
 }
@@ -39,6 +40,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
   }
 
   const isAdmin = profile?.role === 'ADMIN'
+  const canViewAnalytics = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
 
   return (
     <div className="authenticated-shell" dir="rtl">
@@ -50,7 +52,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
           <a className={`route-content ${activeRoute === 'content' ? 'active' : ''}`} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
           {isAdmin && <a className={`route-clients ${activeRoute === 'clients' ? 'active' : ''}`} href={routes.clients.path} onClick={(e) => navigate(e, 'clients')}><i>{icons.clients}</i><span>לקוחות</span></a>}
           <a className={`route-messages ${activeRoute === 'messages' ? 'active' : ''}`} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
-          <button className="disabled-nav" type="button" disabled title="בקרוב"><i>{icons.analytics}</i><span>אנליטיקה</span><small>בקרוב</small></button>
+          {canViewAnalytics && <a className={`route-analytics ${activeRoute === 'analytics' ? 'active' : ''}`} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
           <button className="disabled-nav" type="button" disabled title="בקרוב"><i>{icons.notifications}</i><span>התראות</span><small>בקרוב</small></button>
         </nav>
         <button className="sidebar-logout" type="button" onClick={onLogout}><i>{icons.logout}</i><span>התנתקות</span></button>
@@ -73,6 +75,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         <a className={activeRoute === 'calendar' ? 'active' : ''} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
         <a className={activeRoute === 'content' ? 'active' : ''} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
         <a className={activeRoute === 'messages' ? 'active' : ''} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
+        {canViewAnalytics && <a className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
         <button type="button" onClick={onLogout}><i>{icons.logout}</i><span>יציאה</span></button>
       </nav>
     </div>

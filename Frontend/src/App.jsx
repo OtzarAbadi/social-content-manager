@@ -5,6 +5,7 @@ import './App.css'
 import DashboardPage from './pages/DashboardPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
+import AnalyticsPage from './pages/AnalyticsPage.jsx'
 
 const defaultRoute = 'login'
 
@@ -33,6 +34,11 @@ const routes = {
     path: '/calendar',
     label: 'לוח שנה',
     Component: CalendarPage,
+  },
+  analytics: {
+    path: '/analytics',
+    label: 'אנליטיקה',
+    Component: AnalyticsPage,
   },
   login: {
     path: '/login',
