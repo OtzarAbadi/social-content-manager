@@ -994,22 +994,27 @@ input:focus-visible {
   }
 }
 
-.caption-generator { grid-column: 1 / -1; display: grid; gap: 14px; padding: 16px; border: 1px solid #E3D6C5; border-radius: 16px; background: #FBF7F1; }
-.caption-generator-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.caption-generator-heading > div { display: grid; gap: 3px; }
+.caption-generator { grid-column: 1 / -1; display: grid; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; grid-auto-flow: row; grid-template-columns: minmax(0,1fr); gap: 14px; padding: 16px; overflow: hidden; border: 1px solid #E3D6C5; border-radius: 16px; background: #FBF7F1; direction: rtl; text-align: right; }
+.caption-generator-heading { display: grid; width: 100%; min-width: 0; grid-auto-flow: row; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 14px; }
+.caption-generator-heading > div { display: grid; width: 100%; min-width: 0; gap: 3px; }
+.caption-generator-heading strong, .caption-generator-heading small { display: block; width: 100%; max-width: 100%; overflow-wrap: anywhere; word-break: normal; }
 .caption-generator-heading strong { color: #4F3C2D; }
 .caption-generator-heading small, .caption-generator-hint { color: #7A6B5E; }
-.caption-generator-options { display: grid; grid-template-columns: minmax(130px,.6fr) minmax(220px,1.4fr); gap: 12px; }
-.caption-generator-options label { display: grid; gap: 6px; color: #6D5640; font-size: .86rem; font-weight: 700; }
+.caption-generator-heading > button { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; justify-self: stretch; white-space: nowrap; }
+.caption-generator-options { display: grid; width: 100%; min-width: 0; grid-auto-flow: row; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.caption-generator-options label { display: grid; width: 100%; min-width: 0; box-sizing: border-box; gap: 6px; color: #6D5640; font-size: .86rem; font-weight: 700; overflow-wrap: anywhere; }
+.caption-generator-options input, .caption-generator-options select { width: 100%; min-width: 0; max-width: 100%; }
 .caption-generator-hint, .caption-generator-error { margin: 0; font-size: .86rem; }
 .caption-generator-error { color: #8B3E37; }
-.caption-suggestion-preview { padding: 14px; border: 1px solid #D8C5B1; border-radius: 14px; background: #FFFDFC; }
-.caption-suggestion-preview p { margin: 0 0 12px; color: #3F3024; white-space: pre-wrap; }
-.caption-suggestion-preview > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.caption-suggestion-preview { min-width: 0; max-width: 100%; padding: 14px; overflow: hidden; border: 1px solid #D8C5B1; border-radius: 14px; background: #FFFDFC; }
+.caption-suggestion-preview p { max-width: 100%; margin: 0 0 12px; color: #3F3024; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; }
+.caption-suggestion-preview > div { display: flex; width: 100%; min-width: 0; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.caption-suggestion-preview button { width: max-content; max-width: 100%; min-width: 0; box-sizing: border-box; flex: 0 1 auto; white-space: nowrap; }
 
 @media (max-width: 640px) {
-  .caption-generator-heading { align-items: stretch; flex-direction: column; }
-  .caption-generator-options { grid-template-columns: 1fr; }
+  .caption-generator-heading > button { width: 100%; }
+  .caption-suggestion-preview > div { display: flex; flex-direction: column; align-items: stretch; }
+  .caption-suggestion-preview button { width: 100%; min-width: 0; }
 }
 
 /* Guaranteed notification trigger visibility in the authenticated header */
