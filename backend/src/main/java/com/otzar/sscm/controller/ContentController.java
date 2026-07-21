@@ -13,6 +13,7 @@ import com.otzar.sscm.service.ContentVersionService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.NotificationService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
+import com.otzar.sscm.service.ContentService.RestoreContentVersionResult;
 import com.otzar.sscm.models.RejectContentRequest;
 import com.otzar.sscm.models.UpdateScheduleRequest;
 import org.springframework.http.HttpStatus;
@@ -120,6 +121,31 @@ public class ContentController {
         }
 
         return ResponseEntity.ok(contentVersionService.findHistory(id));
+    }
+
+    @PostMapping("/{contentId}/versions/{versionNumber}/restore")
+    public ResponseEntity<?> restoreContentVersion(
+            @PathVariable Long contentId,
+            @PathVariable Integer versionNumber,
+            @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!authService.isAdmin(currentUser.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            RestoreContentVersionResult result = contentService.restoreVersion(
+                    contentId, versionNumber, currentUser.get().getUser_id());
+            if (!result.isSuccess()) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(result.getResponse());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(new ApiResponse(false, ex.getMessage()));
+        }
     }
 
     @GetMapping("/by-client")

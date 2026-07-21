@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +25,14 @@ public class ContentVersionService {
 
     public ContentState capture(Content content) {
         return new ContentState(content);
+    }
+
+    public void lockContent(Long contentId) {
+        contentVersionRepository.lockContent(contentId);
+    }
+
+    public Optional<ContentVersion> findVersion(Long contentId, Integer versionNumber) {
+        return contentVersionRepository.findByContentIdAndVersionNumber(contentId, versionNumber);
     }
 
     public boolean hasMeaningfulChanges(ContentState before, Content after) {

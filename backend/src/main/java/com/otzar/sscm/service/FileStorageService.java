@@ -58,6 +58,20 @@ public class FileStorageService {
         return uploadDirectory;
     }
 
+    public boolean isManagedUploadAvailable(String fileUrl) {
+        if (fileUrl == null || !fileUrl.startsWith("/uploads/")) {
+            return true;
+        }
+
+        String storedName = fileUrl.substring("/uploads/".length());
+        if (storedName.isEmpty()) {
+            return false;
+        }
+
+        Path candidate = uploadDirectory.resolve(storedName).normalize();
+        return candidate.startsWith(uploadDirectory) && Files.isRegularFile(candidate);
+    }
+
     private String getExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot < 0 ? "" : filename.substring(dot + 1).toLowerCase(Locale.ROOT);

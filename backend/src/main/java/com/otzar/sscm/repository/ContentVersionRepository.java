@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @Transactional
@@ -47,5 +48,14 @@ public class ContentVersionRepository {
                 .createQuery("FROM ContentVersion WHERE contentId = :contentId ORDER BY versionNumber ASC", ContentVersion.class)
                 .setParameter("contentId", contentId)
                 .list();
+    }
+
+    public Optional<ContentVersion> findByContentIdAndVersionNumber(Long contentId, Integer versionNumber) {
+        return persist.getQuerySession()
+                .createQuery("FROM ContentVersion WHERE contentId = :contentId " +
+                        "AND versionNumber = :versionNumber", ContentVersion.class)
+                .setParameter("contentId", contentId)
+                .setParameter("versionNumber", versionNumber)
+                .uniqueResultOptional();
     }
 }

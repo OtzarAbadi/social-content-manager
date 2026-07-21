@@ -3,7 +3,9 @@ package com.otzar.sscm.service;
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.entities.ContentVersionChangeType;
+import com.otzar.sscm.entities.ContentVersion;
 import com.otzar.sscm.entities.Comment;
+import com.otzar.sscm.models.RestoreContentVersionResponse;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.CommentRepository;
 import com.otzar.sscm.repository.ContentRepository;
@@ -24,13 +26,16 @@ public class ContentService {
     private final ClientRepository clientRepository;
     private final CommentRepository commentRepository;
     private final ContentVersionService contentVersionService;
+    private final FileStorageService fileStorageService;
 
     public ContentService(ContentRepository contentRepository, ClientRepository clientRepository,
-                          CommentRepository commentRepository, ContentVersionService contentVersionService) {
+                          CommentRepository commentRepository, ContentVersionService contentVersionService,
+                          FileStorageService fileStorageService) {
         this.contentRepository = contentRepository;
         this.clientRepository = clientRepository;
         this.commentRepository = commentRepository;
         this.contentVersionService = contentVersionService;
+        this.fileStorageService = fileStorageService;
     }
 
     public List<Content> findAll() {
@@ -59,6 +64,50 @@ public class ContentService {
 
     public Optional<Content> findById(Long id) {
         return contentRepository.findById(id);
+    }
+
+    @Transactional
+    public RestoreContentVersionResult restoreVersion(Long contentId, Integer versionNumber,
+                                                      Long changedByUserId) {
+        contentVersionService.lockContent(contentId);
+        Optional<Content> existingContent = contentRepository.findById(contentId);
+        if (existingContent.isEmpty()) {
+            return RestoreContentVersionResult.contentNotFound();
+        }
+
+        Optional<ContentVersion> sourceVersion = contentVersionService.findVersion(contentId, versionNumber);
+        if (sourceVersion.isEmpty()) {
+            return RestoreContentVersionResult.versionNotFound();
+        }
+
+        Content content = existingContent.get();
+        if (content.getStatus() != ContentStatus.DRAFT && content.getStatus() != ContentStatus.REJECTED) {
+            throw new IllegalStateException("Content cannot be restored in its current status");
+        }
+
+        ContentVersion source = sourceVersion.get();
+        if (!fileStorageService.isManagedUploadAvailable(source.getFileUrl())) {
+            throw new IllegalStateException("Historical media file is unavailable");
+        }
+
+        boolean changed = !java.util.Objects.equals(content.getTitle(), source.getTitle())
+                || !java.util.Objects.equals(content.getDescription(), source.getDescription())
+                || !java.util.Objects.equals(content.getContent_type(), source.getContentType())
+                || !java.util.Objects.equals(content.getFile_url(), source.getFileUrl());
+        if (!changed) {
+            return RestoreContentVersionResult.success(new RestoreContentVersionResponse(
+                    content, versionNumber, null, false));
+        }
+
+        content.setTitle(source.getTitle());
+        content.setDescription(source.getDescription());
+        content.setContent_type(source.getContentType());
+        content.setFile_url(source.getFileUrl());
+        Content restored = contentRepository.save(content);
+        ContentVersion newVersion = contentVersionService.createSnapshot(
+                restored, changedByUserId, ContentVersionChangeType.EDITED);
+        return RestoreContentVersionResult.success(new RestoreContentVersionResponse(
+                restored, versionNumber, newVersion.getVersionNumber(), true));
     }
 
     @Transactional
@@ -334,5 +383,37 @@ public class ContentService {
     public enum FailureReason {
         CONTENT_NOT_FOUND,
         CLIENT_NOT_FOUND
+    }
+
+    public static class RestoreContentVersionResult {
+        private final RestoreContentVersionResponse response;
+        private final RestoreFailureReason failureReason;
+
+        private RestoreContentVersionResult(RestoreContentVersionResponse response,
+                                            RestoreFailureReason failureReason) {
+            this.response = response;
+            this.failureReason = failureReason;
+        }
+
+        public static RestoreContentVersionResult success(RestoreContentVersionResponse response) {
+            return new RestoreContentVersionResult(response, null);
+        }
+
+        public static RestoreContentVersionResult contentNotFound() {
+            return new RestoreContentVersionResult(null, RestoreFailureReason.CONTENT_NOT_FOUND);
+        }
+
+        public static RestoreContentVersionResult versionNotFound() {
+            return new RestoreContentVersionResult(null, RestoreFailureReason.VERSION_NOT_FOUND);
+        }
+
+        public boolean isSuccess() { return response != null; }
+        public RestoreContentVersionResponse getResponse() { return response; }
+        public RestoreFailureReason getFailureReason() { return failureReason; }
+    }
+
+    public enum RestoreFailureReason {
+        CONTENT_NOT_FOUND,
+        VERSION_NOT_FOUND
     }
 }

@@ -1142,6 +1142,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { background: 
 .version-history-media { display: block; width: 100%; max-height: 330px; margin-top: 14px; overflow: hidden; border: 1px solid #E3D6C5; border-radius: 14px; background: #F4EBDD; }
 .version-history-media img { display: block; width: 100%; max-height: 330px; object-fit: contain; }
 video.version-history-media { object-fit: contain; }
+.version-restore-note { margin: 0 0 16px; padding: 12px 14px; border: 1px solid #DDCFBE; border-radius: 12px; color: #6E5845; background: #FBF5EC; }
+.version-restore-feedback { margin: 0 0 16px; padding: 11px 14px; border-radius: 12px; font-weight: 700; }
+.version-restore-error { border: 1px solid #E1B8B1; color: #8B3E37; background: #FFF4F1; }
+.version-restore-success { border: 1px solid #BFD3B9; color: #466442; background: #F1F8EF; }
+.version-restore-actions { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 14px; border-top: 1px solid #E9DED1; }
+.version-restore-button { min-width: 132px; }
+.version-restore-button:disabled { cursor: wait; opacity: .62; }
 
 @keyframes history-spin { to { transform: rotate(360deg); } }
 

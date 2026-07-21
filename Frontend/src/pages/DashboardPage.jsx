@@ -1620,7 +1620,15 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
         <ContentVersionHistoryModal
           key={getContentId(historyContent)}
           content={historyContent}
+          role={profile.role}
           onClose={() => setHistoryContent(null)}
+          onRestored={async (result) => {
+            await loadContents()
+            if (result?.content) setHistoryContent(result.content)
+            showNotice(result?.changed
+              ? `גרסה ${result.restoredFromVersionNumber} שוחזרה בהצלחה`
+              : `התוכן כבר תואם לגרסה ${result?.restoredFromVersionNumber}`)
+          }}
         />
       )}
       {rejectionDialog.contentId !== null && (
