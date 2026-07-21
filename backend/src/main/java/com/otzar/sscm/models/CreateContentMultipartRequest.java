@@ -3,10 +3,14 @@ package com.otzar.sscm.models;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 public class CreateContentMultipartRequest {
+    @NotNull(message = "Client ID is required")
     private Long clientId;
+    @NotBlank(message = "Title is required")
     private String title;
     private String description;
     private String contentType;

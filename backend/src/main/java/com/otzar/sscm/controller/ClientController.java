@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -68,7 +69,7 @@ public class ClientController {
     }
 
     @PostMapping
-    public ResponseEntity<Client> addClient(@RequestBody CreateClientRequest request,
+    public ResponseEntity<Client> addClient(@Valid @RequestBody CreateClientRequest request,
                                             @CookieValue(value = "token", required = false) String token) {
         Optional<User> currentUser = authService.findUserByToken(token);
 
@@ -85,7 +86,7 @@ public class ClientController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Client> updateClient(@PathVariable Long id,
-                                               @RequestBody UpdateClientRequest request,
+                                               @Valid @RequestBody UpdateClientRequest request,
                                                @CookieValue(value = "token", required = false) String token) {
         Optional<User> currentUser = authService.findUserByToken(token);
 

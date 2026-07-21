@@ -3,6 +3,7 @@ package com.otzar.sscm.controller;
 import com.otzar.sscm.entities.Comment;
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.User;
+import com.otzar.sscm.models.CreateCommentRequest;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.CommentService;
 import com.otzar.sscm.service.ContentService;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/comments")
@@ -41,7 +43,7 @@ public class CommentController {
     }
 
     @PostMapping
-    public ResponseEntity<Comment> addComment(@RequestBody Comment comment,
+    public ResponseEntity<Comment> addComment(@Valid @RequestBody CreateCommentRequest request,
                                               @CookieValue(value = "token", required = false) String token) {
         Optional<User> currentUser = authService.findUserByToken(token);
 
@@ -49,7 +51,7 @@ public class CommentController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        Optional<Content> content = contentService.findById(comment.getContentId());
+        Optional<Content> content = contentService.findById(request.getContentId());
 
         if (content.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -60,6 +62,9 @@ public class CommentController {
         }
 
         User actor = currentUser.get();
+        Comment comment = new Comment();
+        comment.setContentId(request.getContentId());
+        comment.setCommentText(request.getCommentText());
         comment.setUserId(actor.getUser_id());
         Comment created = commentService.create(comment);
         notificationService.notifyOppositeParty(content.get(), actor,

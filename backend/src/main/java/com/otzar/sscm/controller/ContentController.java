@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
+import javax.validation.Valid;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -155,14 +156,14 @@ public class ContentController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addContent(@RequestBody Content content,
+    public ResponseEntity<?> addContent(@Valid @RequestBody Content content,
                                               @CookieValue(value = "token", required = false) String token) {
         return createContent(content, token);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> addContentWithFile(
-            @ModelAttribute CreateContentMultipartRequest request,
+            @Valid @ModelAttribute CreateContentMultipartRequest request,
             @CookieValue(value = "token", required = false) String token) {
         logger.info("Create content multipart request: clientId={}, titlePresent={}, filePresent={}",
                 request.getClientId(),
@@ -178,11 +179,8 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiResponse(false, "You are not allowed to create content"));
         }
-        if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(new ApiResponse(false, "Title is required"));
-        }
         if (!contentService.clientExists(request.getClientId())) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse(false, "Client not found for id: " + request.getClientId()));
         }
 
@@ -227,7 +225,8 @@ public class ContentController {
         }
 
         if (!result.isSuccess()) {
-            return ResponseEntity.badRequest().body(new ApiResponse(false, "Content must be connected to a client"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse(false, "Content must be connected to a client"));
         }
 
         Content created = result.getContent();
@@ -308,7 +307,7 @@ public class ContentController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Content> updateStatus(@PathVariable Long id,
                                                 @RequestParam String status,
-                                                @RequestBody(required = false) RejectContentRequest request,
+                                                @Valid @RequestBody(required = false) RejectContentRequest request,
                                                 @CookieValue(value = "token", required = false) String token) {
         ContentStatus requestedStatus;
 
@@ -384,7 +383,7 @@ public class ContentController {
 
     @PutMapping("/{id}/reject")
     public ResponseEntity<Content> reject(@PathVariable Long id,
-                                          @RequestBody RejectContentRequest request,
+                                          @Valid @RequestBody RejectContentRequest request,
                                           @CookieValue(value = "token", required = false) String token) {
         return clientRejection(id, token, request);
     }

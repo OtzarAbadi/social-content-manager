@@ -1,9 +1,12 @@
 package com.otzar.sscm.models;
 
+import javax.validation.constraints.Pattern;
+
 public class UpdateClientRequest {
 
     private Long userId;
     private Long adminId;
+    @Pattern(regexp = ".*\\S.*", message = "Business name must not be blank")
     private String businessName;
     private String phone;
 

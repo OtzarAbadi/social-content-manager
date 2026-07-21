@@ -1,13 +1,17 @@
 package com.otzar.sscm.entities;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 public class Content {
 
     private Long content_id;
 
+    @NotNull(message = "Client ID is required")
     private Long clientId;
 
+    @NotBlank(message = "Title is required")
     private String title;
     private String description;
     private String file_url;

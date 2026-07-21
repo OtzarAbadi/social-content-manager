@@ -1,11 +1,19 @@
 package com.otzar.sscm.models;
 
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
+
 public class CreateClientRequest {
 
+    @NotBlank(message = "Business name is required")
     private String businessName;
     private String fullName;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
     private String email;
+    @NotBlank(message = "Username is required")
     private String username;
+    @NotBlank(message = "Password is required")
     private String password;
     private String phone;
     private Long adminId;
