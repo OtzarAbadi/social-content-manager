@@ -7,6 +7,7 @@ import com.otzar.sscm.models.UpdateClientRequest;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,10 +17,13 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public ClientService(ClientRepository clientRepository, UserRepository userRepository) {
+    public ClientService(ClientRepository clientRepository, UserRepository userRepository,
+                         PasswordEncoder passwordEncoder) {
         this.clientRepository = clientRepository;
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<Client> findAll() {
@@ -39,7 +43,7 @@ public class ClientService {
         user.setFull_name(valueOrFallback(request.getFullName(), request.getBusinessName()));
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("CLIENT");
         user.setToken("");
 

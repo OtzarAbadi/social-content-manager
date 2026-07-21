@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.sql.DataSource;
 import java.util.Properties;
@@ -48,7 +49,7 @@ public class TestConfig {
     }
 
     @Bean
-    public CommandLineRunner seedTestData(JdbcTemplate jdbcTemplate) {
+    public CommandLineRunner seedTestData(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder) {
         return args -> {
             Integer userCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM users", Integer.class);
 
@@ -61,7 +62,7 @@ public class TestConfig {
                     "Otzar Admin",
                     "admin@sscm.com",
                     "admin",
-                    "123456",
+                    passwordEncoder.encode("123456"),
                     "ADMIN",
                     ""
             );
@@ -70,7 +71,7 @@ public class TestConfig {
                     "Stav Beauty Studio",
                     "client1@sscm.com",
                     "client1",
-                    "123456",
+                    passwordEncoder.encode("123456"),
                     "CLIENT",
                     ""
             );
@@ -79,7 +80,7 @@ public class TestConfig {
                     "Hodaya Nails",
                     "client2@sscm.com",
                     "client2",
-                    "123456",
+                    passwordEncoder.encode("123456"),
                     "CLIENT",
                     ""
             );

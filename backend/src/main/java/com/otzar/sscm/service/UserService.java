@@ -5,6 +5,7 @@ import com.otzar.sscm.models.BasicResponse;
 import com.otzar.sscm.models.LoginRequest;
 import com.otzar.sscm.models.LoginResponse;
 import com.otzar.sscm.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,9 +15,11 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<User> findAll() {
@@ -40,7 +43,7 @@ public class UserService {
 
         User user = userRepository.findByUsername(username).orElse(null);
 
-        if (user == null || !password.equals(user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             return null;
         }
 

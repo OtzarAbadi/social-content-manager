@@ -1,5 +1,7 @@
 package com.otzar.sscm.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class User {
 
     private Long user_id;
@@ -7,8 +9,10 @@ public class User {
     private String full_name;
     private String email;
     private String username;
+    @JsonIgnore
     private String password;
     private String role;
+    @JsonIgnore
     private String token;
 
     // getters & setters

@@ -26,8 +26,16 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
-        return userService.findAll();
+    public ResponseEntity<List<User>> getAllUsers(
+            @CookieValue(value = "token", required = false) String token) {
+        User currentUser = userService.findByToken(token);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (!authService.isAdmin(currentUser)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(userService.findAll());
     }
 
     @PostMapping("/login")

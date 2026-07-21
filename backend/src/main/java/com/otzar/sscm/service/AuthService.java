@@ -11,6 +11,7 @@ import java.util.Optional;
 public class AuthService {
 
     private static final String CLIENT_ROLE = "CLIENT";
+    private static final String ADMIN_ROLE = "ADMIN";
 
     private final UserService userService;
     private final ClientService clientService;
@@ -25,7 +26,7 @@ public class AuthService {
     }
 
     public boolean isAdmin(User user) {
-        return user != null && !CLIENT_ROLE.equalsIgnoreCase(user.getRole());
+        return user != null && ADMIN_ROLE.equalsIgnoreCase(user.getRole());
     }
 
     public boolean isClient(User user) {

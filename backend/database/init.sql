@@ -81,9 +81,9 @@ CREATE TABLE notifications (
 
 INSERT INTO users (full_name, email, username, password, role, token)
 VALUES
-    ('Otzar Admin', 'admin@sscm.com', 'admin', '123456', 'ADMIN', ''),
-    ('Stav Beauty Studio', 'client1@sscm.com', 'client1', '123456', 'CLIENT', ''),
-    ('Hodaya Nails', 'client2@sscm.com', 'client2', '123456', 'CLIENT', '');
+    ('Otzar Admin', 'admin@sscm.com', 'admin', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'ADMIN', ''),
+    ('Stav Beauty Studio', 'client1@sscm.com', 'client1', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'CLIENT', ''),
+    ('Hodaya Nails', 'client2@sscm.com', 'client2', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'CLIENT', '');
 
 INSERT INTO admins (user_id)
 VALUES (1);
