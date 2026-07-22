@@ -1011,10 +1011,29 @@ input:focus-visible {
 .caption-suggestion-preview > div { display: flex; width: 100%; min-width: 0; flex-wrap: wrap; align-items: stretch; gap: 8px; }
 .caption-suggestion-preview button { width: max-content; max-width: 100%; min-width: 0; box-sizing: border-box; flex: 0 1 auto; white-space: nowrap; }
 
+.publishing-recommendation { grid-column: 1 / -1; display: grid; width: 100%; min-width: 0; box-sizing: border-box; gap: 14px; padding: 16px; border: 1px solid #D2C0AA; border-radius: 16px; background: #FCFAF7; box-shadow: 0 4px 14px rgba(79,60,45,.06); direction: rtl; text-align: right; }
+.publishing-recommendation-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 14px; }
+.publishing-recommendation-heading > div { display: grid; min-width: 0; gap: 3px; }
+.publishing-recommendation-heading strong { color: #4F3C2D; }
+.publishing-recommendation-heading small, .publishing-recommendation-hint { color: #7A6B5E; overflow-wrap: anywhere; }
+.publishing-recommendation-keywords { display: grid; min-width: 0; gap: 6px; color: #6D5640; font-size: .86rem; font-weight: 700; }
+.publishing-recommendation-keywords input { width: 100%; min-width: 0; max-width: 100%; }
+.publishing-recommendation-hint, .publishing-recommendation-error { margin: 0; font-size: .86rem; }
+.publishing-recommendation-error { color: #8B3E37; }
+.publishing-recommendation-preview { display: grid; min-width: 0; gap: 12px; padding: 14px; border: 1px solid #D9CBB9; border-radius: 14px; background: #FFFDFC; }
+.publishing-recommendation-preview > div:first-child { display: grid; gap: 3px; }
+.publishing-recommendation-preview span, .publishing-recommendation-preview small { color: #746557; font-size: .8rem; }
+.publishing-recommendation-preview strong { color: #3F3024; font-size: 1.05rem; }
+.publishing-recommendation-preview p { margin: 0; color: #594737; overflow-wrap: anywhere; }
+.publishing-recommendation-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
 @media (max-width: 640px) {
   .caption-generator-heading > button { width: 100%; }
   .caption-suggestion-preview > div { display: flex; flex-direction: column; align-items: stretch; }
   .caption-suggestion-preview button { width: 100%; min-width: 0; }
+  .publishing-recommendation-heading { align-items: stretch; flex-direction: column; }
+  .publishing-recommendation-heading > button, .publishing-recommendation-actions button { width: 100%; }
+  .publishing-recommendation-actions { flex-direction: column; }
 }
 
 /* Guaranteed notification trigger visibility in the authenticated header */

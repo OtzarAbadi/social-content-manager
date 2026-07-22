@@ -4,6 +4,7 @@ import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
 import CaptionGenerator from '../components/CaptionGenerator.jsx'
+import PublishingRecommendation from '../components/PublishingRecommendation.jsx'
 
 const api = axios.create({
   baseURL: 'http://localhost:8081',
@@ -1291,6 +1292,16 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                   onChange={handleContentDraftChange}
                                 />
                               </label>
+                              {isAdmin && (
+                                <PublishingRecommendation
+                                  key={`edit-recommendation-${contentId}-${contentDraft.clientId}-${contentDraft.title}-${contentDraft.content_type}-${contentDraft.plannedPublishDate}`}
+                                  clientId={contentDraft.clientId}
+                                  title={contentDraft.title}
+                                  contentType={contentDraft.content_type}
+                                  plannedPublishDate={contentDraft.plannedPublishDate}
+                                  onApply={(recommendedDate) => setContentDraft((current) => ({ ...current, plannedPublishDate: recommendedDate }))}
+                                />
+                              )}
                               <label>
                                 קישור
                                 <input
@@ -1492,6 +1503,16 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                             onChange={handleContentFormChange}
                           />
                         </label>
+                        {isAdmin && (
+                          <PublishingRecommendation
+                            key={`create-recommendation-${contentForm.clientId}-${contentForm.title}-${contentForm.content_type}-${contentForm.plannedPublishDate}`}
+                            clientId={contentForm.clientId}
+                            title={contentForm.title}
+                            contentType={contentForm.content_type}
+                            plannedPublishDate={contentForm.plannedPublishDate}
+                            onApply={(recommendedDate) => setContentForm((current) => ({ ...current, plannedPublishDate: recommendedDate }))}
+                          />
+                        )}
                         <label>
                           קובץ תמונה או וידאו
                           <input
