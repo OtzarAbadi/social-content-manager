@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { getContentVersions, restoreContentVersion } from '../api/contentVersions.js'
 import StatusBadge from './StatusBadge.jsx'
@@ -23,7 +23,17 @@ function formatDateTime(value) {
 
 function resolveFileUrl(fileUrl) {
   if (!fileUrl) return ''
-  return fileUrl.startsWith('http') ? fileUrl : `${API_BASE_URL}${fileUrl}`
+  if (/^https?:\/\//.test(fileUrl)) {
+    try {
+      const url = new URL(fileUrl)
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : ''
+    } catch {
+      return ''
+    }
+  }
+  return /^\/uploads\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+(?:\?[^\s#]*)?(?:#[^\s]*)?$/.test(fileUrl)
+    ? `${API_BASE_URL}${fileUrl}`
+    : ''
 }
 
 function getMediaKind(version) {
@@ -31,6 +41,63 @@ function getMediaKind(version) {
   if (/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(path) || version.contentType === 'IMAGE') return 'image'
   if (/\.(mp4|webm|mov|avi|mkv)$/.test(path) || version.contentType === 'VIDEO') return 'video'
   return 'file'
+}
+
+const comparisonFields = [
+  { key: 'title', label: 'כותרת' },
+  { key: 'description', label: 'תיאור' },
+  { key: 'contentType', label: 'סוג תוכן' },
+  { key: 'fileUrl', label: 'מדיה' },
+  { key: 'status', label: 'סטטוס' },
+  { key: 'plannedPublishDate', label: 'מועד פרסום' },
+]
+
+function versionKey(version) {
+  return String(version.contentVersionId ?? `version-${version.versionNumber}`)
+}
+
+function valuesAreEqual(first, second) {
+  return (first == null ? null : first) === (second == null ? null : second)
+}
+
+function displayValue(field, value) {
+  if (value == null) return 'לא צוין'
+  if (value === '') return 'ערך ריק'
+  if (field === 'plannedPublishDate') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? 'תאריך לא תקין' : date.toLocaleString('he-IL')
+  }
+  if (field === 'contentType') return contentTypeLabels[value] || value
+  return value
+}
+
+function ComparisonValue({ field, version }) {
+  const value = version[field]
+  const displayed = displayValue(field, value)
+
+  if (field === 'status' && value) return <StatusBadge status={value} />
+  if (field !== 'fileUrl') return <span>{displayed}</span>
+
+  const mediaUrl = resolveFileUrl(value)
+  const mediaKind = getMediaKind(version)
+  return (
+    <div className="version-comparison-media-wrap">
+      {mediaUrl && mediaKind === 'image' && (
+        <a className="version-comparison-media" href={mediaUrl} target="_blank" rel="noreferrer noopener">
+          <img src={mediaUrl} alt={`מדיה מגרסה ${version.versionNumber}`} />
+        </a>
+      )}
+      {mediaUrl && mediaKind === 'video' && (
+        <video className="version-comparison-media" src={mediaUrl} controls preload="metadata">
+          <a href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת הווידאו</a>
+        </video>
+      )}
+      {mediaUrl && mediaKind === 'file' && (
+        <a className="file-link" href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת קובץ המדיה</a>
+      )}
+      <span className="version-comparison-url" dir="ltr">{displayed}</span>
+    </div>
+  )
 }
 
 function getHistoryErrorMessage(error) {
@@ -62,10 +129,19 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
   const [restoringVersion, setRestoringVersion] = useState(null)
   const [restoreError, setRestoreError] = useState('')
   const [restoreSuccess, setRestoreSuccess] = useState('')
+  const [selectedVersionKeys, setSelectedVersionKeys] = useState([])
+  const [selectionMessage, setSelectionMessage] = useState('')
+  const [comparisonOpen, setComparisonOpen] = useState(false)
+  const [showOnlyChanges, setShowOnlyChanges] = useState(false)
+  const comparisonPanelRef = useRef(null)
   const isAdmin = role === 'ADMIN'
   const canRestore = isAdmin && RESTORABLE_STATUSES.has(content.status)
 
   const loadHistory = useCallback(async (signal) => {
+    setSelectedVersionKeys([])
+    setSelectionMessage('')
+    setComparisonOpen(false)
+    setShowOnlyChanges(false)
     setError('')
     setLoading(true)
     try {
@@ -89,11 +165,45 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
 
   useEffect(() => {
     function closeOnEscape(event) {
-      if (event.key === 'Escape' && restoringVersion === null) onClose()
+      if (event.key === 'Escape' && restoringVersion === null) {
+        setSelectedVersionKeys([])
+        setSelectionMessage('')
+        setComparisonOpen(false)
+        setShowOnlyChanges(false)
+        onClose()
+      }
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [onClose, restoringVersion])
+
+  useEffect(() => {
+    if (comparisonOpen) comparisonPanelRef.current?.focus()
+  }, [comparisonOpen])
+
+  function resetComparison() {
+    setSelectedVersionKeys([])
+    setSelectionMessage('')
+    setComparisonOpen(false)
+    setShowOnlyChanges(false)
+  }
+
+  function handleVersionSelection(version, checked) {
+    const key = versionKey(version)
+    setSelectionMessage('')
+    setComparisonOpen(false)
+
+    if (!checked) {
+      setSelectedVersionKeys((selected) => selected.filter((selectedKey) => selectedKey !== key))
+      return
+    }
+
+    if (selectedVersionKeys.length >= 2) {
+      setSelectionMessage('יש לנקות תחילה בחירה של גרסה אחת.')
+      return
+    }
+    setSelectedVersionKeys((selected) => [...selected, key])
+  }
 
   async function handleRestore(versionNumber) {
     const confirmed = window.confirm(`לשחזר את גרסה ${versionNumber}?\nהסטטוס ומועד הפרסום הנוכחיים יישמרו.`)
@@ -117,8 +227,22 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
   }
 
   const closeIfIdle = () => {
-    if (restoringVersion === null) onClose()
+    if (restoringVersion === null) {
+      resetComparison()
+      onClose()
+    }
   }
+
+  const selectedVersions = selectedVersionKeys
+    .map((key) => versions.find((version) => versionKey(version) === key))
+    .filter(Boolean)
+    .sort((first, second) => first.versionNumber - second.versionNumber)
+  const comparisonRows = selectedVersions.length === 2
+    ? comparisonFields.map((field) => ({
+        ...field,
+        changed: !valuesAreEqual(selectedVersions[0][field.key], selectedVersions[1][field.key]),
+      })).filter((field) => !showOnlyChanges || field.changed)
+    : []
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={closeIfIdle}>
@@ -140,15 +264,76 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
           {!loading && error && <div className="version-history-state version-history-error" role="alert">{error}</div>}
           {!loading && !error && versions.length === 0 && <div className="version-history-state">עדיין אין גרסאות שמורות לתוכן זה.</div>}
           {!loading && !error && versions.length > 0 && (
-            <ol className="version-history-list">
+            <>
+              <div className="version-comparison-controls">
+                <div>
+                  {selectedVersionKeys.length === 1 && <span>נבחרה גרסה אחת מתוך 2</span>}
+                  {selectedVersionKeys.length === 2 && <span>נבחרו 2 גרסאות מתוך 2</span>}
+                  {selectedVersionKeys.length === 0 && <span>יש לבחור שתי גרסאות להשוואה</span>}
+                </div>
+                <div className="version-comparison-buttons">
+                  <button type="button" className="ghost-button small-button" onClick={resetComparison} disabled={selectedVersionKeys.length === 0}>נקה בחירה</button>
+                  <button type="button" className="primary-button small-button" onClick={() => setComparisonOpen(true)} disabled={selectedVersionKeys.length !== 2}>השווה גרסאות</button>
+                </div>
+              </div>
+              {selectionMessage && <p className="version-selection-message" role="status">{selectionMessage}</p>}
+
+              {comparisonOpen && selectedVersions.length === 2 && (
+                <section className="version-comparison-panel" aria-labelledby="version-comparison-title" ref={comparisonPanelRef} tabIndex="-1">
+                  <div className="version-comparison-heading">
+                    <div>
+                      <h3 id="version-comparison-title">השוואת גרסאות</h3>
+                      <p>גרסה {selectedVersions[0].versionNumber} מול גרסה {selectedVersions[1].versionNumber}</p>
+                    </div>
+                    <label className="version-comparison-toggle">
+                      <input type="checkbox" checked={showOnlyChanges} onChange={(event) => setShowOnlyChanges(event.target.checked)} />
+                      <span>הצג רק שינויים</span>
+                    </label>
+                  </div>
+                  <p className="version-comparison-warning">הסטטוס ומועד הפרסום מוצגים לצורכי השוואה בלבד ואינם משוחזרים בפעולת שחזור גרסה.</p>
+                  <div className="version-comparison-column-headings" aria-hidden="true">
+                    <span />
+                    <strong>גרסה מוקדמת · גרסה {selectedVersions[0].versionNumber}</strong>
+                    <strong>גרסה מאוחרת · גרסה {selectedVersions[1].versionNumber}</strong>
+                  </div>
+                  <div className="version-comparison-rows">
+                    {comparisonRows.map((field) => (
+                      <div className={`version-comparison-row ${field.changed ? 'is-changed' : 'is-unchanged'}`} key={field.key}>
+                        <div className="version-comparison-field-name">
+                          <strong>{field.label}</strong>
+                          <span>{field.changed ? 'שונה' : 'ללא שינוי'}</span>
+                        </div>
+                        <div className="version-comparison-value">
+                          <span className="version-comparison-mobile-label">גרסה מוקדמת · גרסה {selectedVersions[0].versionNumber}</span>
+                          <ComparisonValue field={field.key} version={selectedVersions[0]} />
+                        </div>
+                        <div className="version-comparison-value">
+                          <span className="version-comparison-mobile-label">גרסה מאוחרת · גרסה {selectedVersions[1].versionNumber}</span>
+                          <ComparisonValue field={field.key} version={selectedVersions[1]} />
+                        </div>
+                      </div>
+                    ))}
+                    {comparisonRows.length === 0 && <p className="version-comparison-empty">לא נמצאו שינויים בין הגרסאות שנבחרו.</p>}
+                  </div>
+                </section>
+              )}
+
+              <ol className="version-history-list">
               {versions.map((version) => {
                 const mediaUrl = resolveFileUrl(version.fileUrl)
                 const mediaKind = getMediaKind(version)
+                const key = versionKey(version)
                 return (
                   <li className="version-history-item" key={version.contentVersionId ?? version.versionNumber}>
                     <div className="version-history-summary">
                       <div><strong>גרסה {version.versionNumber}</strong><span>{changeTypeLabels[version.changeType] || version.changeType}</span></div>
-                      <StatusBadge status={version.status} />
+                      <div className="version-history-card-controls">
+                        <label className="version-selection-control">
+                          <input type="checkbox" checked={selectedVersionKeys.includes(key)} onChange={(event) => handleVersionSelection(version, event.target.checked)} />
+                          <span>בחר גרסה {version.versionNumber} להשוואה</span>
+                        </label>
+                        <StatusBadge status={version.status} />
+                      </div>
                     </div>
                     <div className="version-history-meta">
                       <span>עודכן: {formatDateTime(version.changedAt)}</span>
@@ -160,9 +345,9 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
                       <div><dt>סוג תוכן</dt><dd>{contentTypeLabels[version.contentType] || version.contentType || 'לא צוין'}</dd></div>
                       <div><dt>מועד פרסום</dt><dd>{formatDateTime(version.plannedPublishDate)}</dd></div>
                     </dl>
-                    {mediaUrl && mediaKind === 'image' && <a className="version-history-media" href={mediaUrl} target="_blank" rel="noreferrer"><img src={mediaUrl} alt={`מדיה מגרסה ${version.versionNumber}`} /></a>}
+                    {mediaUrl && mediaKind === 'image' && <a className="version-history-media" href={mediaUrl} target="_blank" rel="noreferrer noopener"><img src={mediaUrl} alt={`מדיה מגרסה ${version.versionNumber}`} /></a>}
                     {mediaUrl && mediaKind === 'video' && <video className="version-history-media" src={mediaUrl} controls preload="metadata"><a href={mediaUrl}>פתיחת הווידאו</a></video>}
-                    {mediaUrl && mediaKind === 'file' && <a className="file-link" href={mediaUrl} target="_blank" rel="noreferrer">פתיחת קובץ המדיה</a>}
+                    {mediaUrl && mediaKind === 'file' && <a className="file-link" href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת קובץ המדיה</a>}
                     {canRestore && (
                       <div className="version-restore-actions">
                         <button type="button" className="ghost-button small-button version-restore-button" disabled={restoringVersion !== null} onClick={() => handleRestore(version.versionNumber)}>
@@ -173,7 +358,8 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
                   </li>
                 )
               })}
-            </ol>
+              </ol>
+            </>
           )}
         </div>
       </section>

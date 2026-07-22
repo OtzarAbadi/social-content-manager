@@ -1157,6 +1157,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { background: 
 .version-history-summary > div { display: grid; gap: 3px; }
 .version-history-summary strong { color: #3F3024; font-size: 1.1rem; }
 .version-history-summary span { color: #8A6A4D; font-size: .85rem; font-weight: 700; }
+.version-history-card-controls { display: flex !important; align-items: center; gap: 12px !important; }
+.version-selection-control { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #D8C7B4; border-radius: 10px; color: #5E4938; background: #FFF; cursor: pointer; }
+.version-selection-control:focus-within { outline: 2px solid #7A5C43; outline-offset: 2px; }
+.version-selection-control input, .version-comparison-toggle input { width: 17px; height: 17px; margin: 0; accent-color: #7A5C43; }
+.version-selection-control span { color: inherit; font-size: .8rem; }
 .version-history-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0; color: #746557; font-size: .82rem; }
 .version-history-fields { display: grid; margin: 0; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .version-history-fields div { min-width: 0; padding: 10px 12px; border-radius: 12px; background: #F7F0E7; }
@@ -1173,6 +1178,43 @@ video.version-history-media { object-fit: contain; }
 .version-restore-button { min-width: 132px; }
 .version-restore-button:disabled { cursor: wait; opacity: .62; }
 
+.version-comparison-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; padding: 14px 16px; border: 1px solid #DCCBB8; border-radius: 14px; background: #F8F1E8; }
+.version-comparison-controls > div:first-child { display: grid; gap: 3px; }
+.version-comparison-controls strong { color: #3F3024; }
+.version-comparison-controls span { color: #746557; font-size: .85rem; }
+.version-comparison-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.version-comparison-buttons button:disabled { cursor: not-allowed; opacity: .5; }
+.version-selection-message { margin: 0 0 12px; padding: 9px 12px; border: 1px solid #E0C7A8; border-radius: 10px; color: #77552F; background: #FFF8EA; }
+.version-comparison-panel { margin-bottom: 18px; padding: 18px; border: 1px solid #E3D6C5; border-radius: 18px; background: #FFF; box-shadow: 0 4px 14px rgba(79,60,45,.05); }
+.version-comparison-panel:focus { outline: 2px solid #7A5C43; outline-offset: 2px; }
+.version-comparison-panel h3 { margin: 0; padding: 0; border: 0; color: #3F3024; background: transparent; font-size: 1.25rem; }
+.version-comparison-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.version-comparison-heading p { margin: 4px 0 0; color: #746557; font-size: .85rem; }
+.version-comparison-toggle { display: inline-flex; align-items: center; gap: 8px; color: #4F3C2D; cursor: pointer; }
+.version-comparison-toggle:focus-within { outline: 2px solid #7A5C43; outline-offset: 3px; }
+.version-comparison-warning { margin: 14px 0; padding: 11px 13px; border: 1px solid #DCCBB8; border-radius: 11px; color: #654E3B; background: #FAF3E9; }
+.version-comparison-column-headings, .version-comparison-row { display: grid; grid-template-columns: minmax(120px, .6fr) repeat(2, minmax(0, 1fr)); }
+.version-comparison-column-headings { border: 1px solid #DED0C0; border-bottom: 0; border-radius: 12px 12px 0 0; background: #EEE3D6; }
+.version-comparison-column-headings strong { padding: 10px 12px; color: #4F3C2D; font-size: .85rem; }
+.version-comparison-rows { border: 1px solid #DED0C0; border-radius: 0 0 12px 12px; overflow: hidden; }
+.version-comparison-row + .version-comparison-row { border-top: 1px solid #E7DBCD; }
+.version-comparison-row.is-changed { background: #FFF8E9; }
+.version-comparison-row.is-unchanged { background: #FAF8F5; }
+.version-comparison-field-name, .version-comparison-value { min-width: 0; padding: 12px; }
+.version-comparison-field-name { display: grid; align-content: start; gap: 4px; border-inline-end: 1px solid #E7DBCD; }
+.version-comparison-field-name strong { color: #4F3C2D; }
+.version-comparison-field-name span { color: #756657; font-size: .75rem; font-weight: 800; }
+.version-comparison-row.is-changed .version-comparison-field-name span { color: #8A5717; }
+.version-comparison-value { color: #4F3C2D; overflow-wrap: anywhere; white-space: pre-wrap; }
+.version-comparison-value + .version-comparison-value { border-inline-start: 1px solid #E7DBCD; }
+.version-comparison-mobile-label { display: none; }
+.version-comparison-media-wrap { display: grid; gap: 8px; }
+.version-comparison-media { display: block; width: 100%; max-height: 220px; overflow: hidden; border: 1px solid #DDD0C1; border-radius: 10px; background: #F4EBDD; }
+.version-comparison-media img { display: block; width: 100%; max-height: 220px; object-fit: contain; }
+video.version-comparison-media { object-fit: contain; }
+.version-comparison-url { color: #645649; font-size: .76rem; overflow-wrap: anywhere; text-align: left; white-space: normal; }
+.version-comparison-empty { margin: 0; padding: 22px; color: #746557; text-align: center; }
+
 @keyframes history-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
@@ -1182,7 +1224,17 @@ video.version-history-media { object-fit: contain; }
   .version-history-body { padding: 14px; }
   .version-history-item { padding: 15px; }
   .version-history-fields { grid-template-columns: 1fr; }
-  .version-history-summary { align-items: center; }
+  .version-history-summary { align-items: flex-start; }
+  .version-history-card-controls { align-items: flex-end; flex-direction: column-reverse; }
+  .version-comparison-controls, .version-comparison-heading { align-items: stretch; flex-direction: column; }
+  .version-comparison-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .version-comparison-panel { padding: 13px; }
+  .version-comparison-column-headings { display: none; }
+  .version-comparison-rows { border-radius: 12px; }
+  .version-comparison-row { display: block; }
+  .version-comparison-field-name { border-inline-end: 0; border-bottom: 1px solid #E7DBCD; }
+  .version-comparison-value + .version-comparison-value { border-inline-start: 0; border-top: 1px dashed #DCCFBE; }
+  .version-comparison-mobile-label { display: block; margin-bottom: 7px; color: #7A5C43; font-size: .76rem; font-weight: 800; }
 }
 
 .calendar-card .fc .fc-button { border-color: #B99872; background: linear-gradient(180deg, #D8BE9B, #C8A77B); box-shadow: 0 4px 10px rgba(79,60,45,.1); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
