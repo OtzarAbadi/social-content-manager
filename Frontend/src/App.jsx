@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
+import ActivityPage from './pages/ActivityPage.jsx'
 
 const defaultRoute = 'login'
 
@@ -45,6 +46,11 @@ const routes = {
     path: '/notifications',
     label: 'התראות',
     Component: NotificationsPage,
+  },
+  activity: {
+    path: '/activity',
+    label: 'מרכז הפעילות',
+    Component: ActivityPage,
   },
   login: {
     path: '/login',

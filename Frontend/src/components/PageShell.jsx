@@ -6,7 +6,7 @@ const api = axios.create({ baseURL: 'http://localhost:8081', withCredentials: tr
 
 const icons = {
   dashboard: '⌂', calendar: '▦', contents: '▤', clients: '♙', comments: '◌',
-  analytics: '↗', notifications: '♢', logout: '↪',
+  analytics: '↗', notifications: '♢', activity: '◷', logout: '↪',
 }
 
 const pageTitles = {
@@ -14,6 +14,7 @@ const pageTitles = {
   dashboard: 'לוח בקרה', calendar: 'לוח תוכן', content: 'ניהול תוכן',
   clients: 'ניהול לקוחות', messages: 'הודעות ותגובות',
   notifications: 'התראות',
+  activity: 'מרכז הפעילות',
 }
 
 function initials(profile) {
@@ -43,6 +44,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
   const isAdmin = profile?.role === 'ADMIN'
   const canViewAnalytics = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
   const canViewNotifications = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
+  const canViewActivity = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
 
   return (
     <div className="authenticated-shell" dir="rtl">
@@ -56,6 +58,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
           <a className={`route-messages ${activeRoute === 'messages' ? 'active' : ''}`} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
           {canViewAnalytics && <a className={`route-analytics ${activeRoute === 'analytics' ? 'active' : ''}`} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
           {canViewNotifications && <a className={`route-notifications ${activeRoute === 'notifications' ? 'active' : ''}`} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
+          {canViewActivity && <a className={`route-activity ${activeRoute === 'activity' ? 'active' : ''}`} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>מרכז הפעילות</span></a>}
         </nav>
         <button className="sidebar-logout" type="button" onClick={onLogout}><i>{icons.logout}</i><span>התנתקות</span></button>
       </aside>
@@ -79,6 +82,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         <a className={activeRoute === 'messages' ? 'active' : ''} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
         {canViewAnalytics && <a className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
         {canViewNotifications && <a className={activeRoute === 'notifications' ? 'active' : ''} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
+        {canViewActivity && <a className={activeRoute === 'activity' ? 'active' : ''} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>פעילות</span></a>}
         <button type="button" onClick={onLogout}><i>{icons.logout}</i><span>יציאה</span></button>
       </nav>
     </div>
