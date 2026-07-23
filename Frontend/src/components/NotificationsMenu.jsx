@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import axios from 'axios'
-
-const api = axios.create({ baseURL: 'http://localhost:8081', withCredentials: true })
+import {
+  announceNotificationsUpdated,
+  getNotifications,
+  getUnreadNotificationCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  NOTIFICATIONS_UPDATED_EVENT,
+} from '../api/notifications.js'
 
 function formatDate(value) {
   if (!value) return ''
@@ -17,16 +22,16 @@ function NotificationsMenu({ onNavigate }) {
   const rootRef = useRef(null)
 
   const loadCount = useCallback(async () => {
-    try { setUnreadCount((await api.get('/notifications/unread-count')).data.count || 0) } catch { /* retry later */ }
+    try { setUnreadCount(await getUnreadNotificationCount()) } catch { /* retry later */ }
   }, [])
 
   const loadNotifications = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await api.get('/notifications')
-      setNotifications(response.data)
-      setUnreadCount(response.data.filter((item) => !(item.read ?? item.isRead)).length)
+      const items = await getNotifications()
+      setNotifications(items)
+      setUnreadCount(items.filter((item) => !(item.read ?? item.isRead)).length)
     } catch {
       setError('לא הצלחנו לטעון את ההתראות')
     } finally { setLoading(false) }
@@ -35,8 +40,16 @@ function NotificationsMenu({ onNavigate }) {
   useEffect(() => {
     Promise.resolve().then(loadCount)
     const interval = window.setInterval(loadCount, 45000)
-    return () => window.clearInterval(interval)
-  }, [loadCount])
+    const refresh = () => {
+      loadCount()
+      if (open) loadNotifications()
+    }
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, refresh)
+    }
+  }, [loadCount, loadNotifications, open])
 
   useEffect(() => {
     if (!open) return
@@ -51,17 +64,19 @@ function NotificationsMenu({ onNavigate }) {
 
   async function openNotification(notification) {
     if (!(notification.read ?? notification.isRead)) {
-      await api.put(`/notifications/${notification.notificationId}/read`)
+      await markNotificationRead(notification.notificationId)
       setNotifications((items) => items.map((item) => item.notificationId === notification.notificationId ? { ...item, read: true } : item))
       setUnreadCount((count) => Math.max(0, count - 1))
+      announceNotificationsUpdated()
     }
     if (notification.relatedContentId) { setOpen(false); onNavigate('content') }
   }
 
   async function markAllRead() {
-    await api.put('/notifications/read-all')
+    await markAllNotificationsRead()
     setNotifications((items) => items.map((item) => ({ ...item, read: true })))
     setUnreadCount(0)
+    announceNotificationsUpdated()
   }
 
   return <div className="notifications-menu" ref={rootRef}>

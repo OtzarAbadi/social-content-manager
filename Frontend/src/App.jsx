@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
+import NotificationsPage from './pages/NotificationsPage.jsx'
 
 const defaultRoute = 'login'
 
@@ -39,6 +40,11 @@ const routes = {
     path: '/analytics',
     label: 'אנליטיקה',
     Component: AnalyticsPage,
+  },
+  notifications: {
+    path: '/notifications',
+    label: 'התראות',
+    Component: NotificationsPage,
   },
   login: {
     path: '/login',
