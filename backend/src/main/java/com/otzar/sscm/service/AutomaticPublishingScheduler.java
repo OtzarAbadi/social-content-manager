@@ -1,6 +1,7 @@
 package com.otzar.sscm.service;
 
 import com.otzar.sscm.entities.Content;
+import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.entities.PublicationTriggerType;
 import com.otzar.sscm.repository.ContentRepository;
 import org.slf4j.*;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.time.*;
+import java.util.List;
 
 @Component
 public class AutomaticPublishingScheduler {
@@ -31,14 +33,29 @@ public class AutomaticPublishingScheduler {
                initialDelayString = "${sscm.publishing.scheduling.initial-delay-ms:30000}")
     public void poll() {
         if (!enabled) return;
-        for (Content content : contents.findEligibleForPublishing(LocalDateTime.now(clock), batchSize)) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Content> candidates = contents.findEligibleForPublishing(now, batchSize);
+        log.info("Scheduler found {} items", candidates.size());
+        for (Content content : candidates) {
+            if (!isEligible(content, now)) {
+                log.info("Skipping content {} - not eligible", content.getContent_id());
+                continue;
+            }
             try {
+                log.info("Publishing content {} via scheduler", content.getContent_id());
                 publishing.publish(content.getContent_id(), null, PublicationTriggerType.SCHEDULED);
             } catch (IllegalStateException ex) {
-                log.info("Scheduled publication skipped for content {}: {}", content.getContent_id(), ex.getMessage());
+                log.info("Skipping content {} - not eligible", content.getContent_id());
             } catch (RuntimeException ex) {
                 log.error("Scheduled publication failed for content {}", content.getContent_id(), ex);
             }
         }
+    }
+
+    private boolean isEligible(Content content, LocalDateTime now) {
+        return content != null
+                && content.getStatus() == ContentStatus.APPROVED
+                && content.getPlannedPublishDate() != null
+                && !content.getPlannedPublishDate().isAfter(now);
     }
 }
