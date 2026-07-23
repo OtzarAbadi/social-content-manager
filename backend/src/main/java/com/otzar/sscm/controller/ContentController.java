@@ -12,6 +12,7 @@ import com.otzar.sscm.service.ContentService;
 import com.otzar.sscm.service.ContentVersionService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.NotificationService;
+import com.otzar.sscm.service.SocialPublishingService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
 import com.otzar.sscm.service.ContentService.RestoreContentVersionResult;
 import com.otzar.sscm.models.RejectContentRequest;
@@ -50,15 +51,18 @@ public class ContentController {
     private final AuthService authService;
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
+    private final SocialPublishingService socialPublishingService;
 
     public ContentController(ContentService contentService, ContentVersionService contentVersionService,
                              AuthService authService,
-                             FileStorageService fileStorageService, NotificationService notificationService) {
+                             FileStorageService fileStorageService, NotificationService notificationService,
+                             SocialPublishingService socialPublishingService) {
         this.contentService = contentService;
         this.contentVersionService = contentVersionService;
         this.authService = authService;
         this.fileStorageService = fileStorageService;
         this.notificationService = notificationService;
+        this.socialPublishingService = socialPublishingService;
     }
 
     @GetMapping
@@ -455,7 +459,7 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(() -> contentService.publish(id, currentUser.get().getUser_id()).map(content -> {
+        return changeStatus(() -> socialPublishingService.publish(id, currentUser.get().getUser_id()).map(content -> {
             notificationService.notifyClient(content, NotificationType.CONTENT_PUBLISHED,
                     "התוכן פורסם", "התוכן ‘" + content.getTitle() + "’ פורסם");
             return content;

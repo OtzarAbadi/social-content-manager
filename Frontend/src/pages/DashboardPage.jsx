@@ -746,7 +746,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     }
 
     if (isAdmin && status === 'APPROVED') {
-      return [{ value: 'PUBLISHED', label: 'פרסום' }]
+      return [{ value: 'PUBLISHED', label: 'פרסם עכשיו' }]
     }
 
     return []
