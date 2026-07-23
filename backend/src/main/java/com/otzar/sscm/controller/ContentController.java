@@ -397,6 +397,11 @@ public class ContentController {
         }
 
         try {
+            if (requestedStatus == ContentStatus.PUBLISHED) {
+                return socialPublishingService.publish(id, currentUser.get().getUser_id())
+                        .map(ResponseEntity::ok)
+                        .orElseGet(() -> ResponseEntity.notFound().build());
+            }
             return withStatusNotification(contentService.updateStatus(
                             id, requestedStatus.name(), currentUser.get().getUser_id()), requestedStatus)
                     .map(ResponseEntity::ok)
@@ -459,11 +464,7 @@ public class ContentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return changeStatus(() -> socialPublishingService.publish(id, currentUser.get().getUser_id()).map(content -> {
-            notificationService.notifyClient(content, NotificationType.CONTENT_PUBLISHED,
-                    "התוכן פורסם", "התוכן ‘" + content.getTitle() + "’ פורסם");
-            return content;
-        }));
+        return changeStatus(() -> socialPublishingService.publish(id, currentUser.get().getUser_id()));
     }
 
     private ResponseEntity<Content> clientStatusChange(Long id, String token, ClientContentStatusOperation operation) {

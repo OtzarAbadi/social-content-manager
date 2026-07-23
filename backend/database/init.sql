@@ -99,6 +99,30 @@ CREATE TABLE notifications (
     INDEX idx_notifications_user_read (user_id, is_read)
 );
 
+CREATE TABLE publication_records (
+    publication_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    delivery_key VARCHAR(190) NOT NULL UNIQUE,
+    content_id INT NOT NULL,
+    provider VARCHAR(50) NOT NULL,
+    target_platform VARCHAR(50) NULL,
+    status VARCHAR(30) NOT NULL,
+    requested_at DATETIME NOT NULL,
+    started_at DATETIME NULL,
+    published_at DATETIME NULL,
+    external_post_id VARCHAR(255) NULL,
+    error_code VARCHAR(100) NULL,
+    error_message VARCHAR(1000) NULL,
+    attempt_number INT NOT NULL,
+    trigger_type VARCHAR(30) NOT NULL,
+    requested_by_user_id INT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (content_id) REFERENCES contents(content_id),
+    FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_publications_content_requested (content_id, requested_at),
+    INDEX idx_publications_status_requested (status, requested_at)
+);
+
 INSERT INTO users (full_name, email, username, password, role, token)
 VALUES
     ('Otzar Admin', 'admin@sscm.com', 'admin', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'ADMIN', ''),

@@ -1793,3 +1793,51 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { background: 
   .entity-card:hover, .comment-item:hover, .overview-card:hover { transform: none; }
   .mobile-nav button:last-child { border-radius: 999px; box-shadow: 0 3px 9px rgba(79,60,45,.08); }
 }
+.integrations-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.integration-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.integration-card {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid rgba(122, 96, 72, .22);
+  border-radius: 18px;
+  background: #fffdf9;
+  box-shadow: 0 8px 24px rgba(74, 54, 37, .07);
+}
+
+.integration-card-icon {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  margin-bottom: .7rem;
+  border-radius: 50%;
+  color: #72543d;
+  background: #f2e8dc;
+}
+
+.integration-card h3 { margin: 0 0 .45rem; font-size: .95rem; color: #6b5a4c; }
+.integration-card strong { display: block; color: #342a22; font-size: 1.12rem; }
+.integration-card small { display: block; margin-top: .45rem; color: #76685d; }
+
+.integration-notice {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-inline-start: 4px solid #9a7657;
+  border-radius: 12px;
+  color: #59493d;
+  background: #f7efe6;
+  line-height: 1.7;
+}
+
+@media (max-width: 780px) {
+  .integration-grid { grid-template-columns: 1fr; }
+}

@@ -98,4 +98,30 @@
         <property name="read" column="is_read" type="boolean" not-null="true"/>
         <property name="createdAt" column="created_at" type="java.time.LocalDateTime" not-null="true"/>
     </class>
+
+    <class name="com.otzar.sscm.entities.PublicationRecord" table="publication_records">
+        <id name="publicationId" column="publication_id" type="long"><generator class="identity"/></id>
+        <property name="deliveryKey" column="delivery_key" type="string" not-null="true" unique="true"/>
+        <property name="contentId" column="content_id" type="long" not-null="true"/>
+        <property name="provider" column="provider" not-null="true">
+            <type name="org.hibernate.type.EnumType"><param name="enumClass">com.otzar.sscm.models.PublishingProviderType</param><param name="useNamed">true</param></type>
+        </property>
+        <property name="targetPlatform" column="target_platform" type="string"/>
+        <property name="status" column="status" not-null="true">
+            <type name="org.hibernate.type.EnumType"><param name="enumClass">com.otzar.sscm.entities.PublicationStatus</param><param name="useNamed">true</param></type>
+        </property>
+        <property name="requestedAt" column="requested_at" type="java.time.LocalDateTime" not-null="true"/>
+        <property name="startedAt" column="started_at" type="java.time.LocalDateTime"/>
+        <property name="publishedAt" column="published_at" type="java.time.LocalDateTime"/>
+        <property name="externalPostId" column="external_post_id" type="string"/>
+        <property name="errorCode" column="error_code" type="string"/>
+        <property name="errorMessage" column="error_message" type="string"/>
+        <property name="attemptNumber" column="attempt_number" type="integer" not-null="true"/>
+        <property name="triggerType" column="trigger_type" not-null="true">
+            <type name="org.hibernate.type.EnumType"><param name="enumClass">com.otzar.sscm.entities.PublicationTriggerType</param><param name="useNamed">true</param></type>
+        </property>
+        <property name="requestedByUserId" column="requested_by_user_id" type="long"/>
+        <property name="createdAt" column="created_at" type="java.time.LocalDateTime" not-null="true"/>
+        <property name="updatedAt" column="updated_at" type="java.time.LocalDateTime" not-null="true"/>
+    </class>
 </hibernate-mapping>
