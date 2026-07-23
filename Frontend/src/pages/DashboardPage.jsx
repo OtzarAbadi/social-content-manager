@@ -5,6 +5,8 @@ import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
 import CaptionGenerator from '../components/CaptionGenerator.jsx'
 import PublishingRecommendation from '../components/PublishingRecommendation.jsx'
+import { getActivity } from '../api/activity.js'
+import { formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 
 const api = axios.create({
   baseURL: 'http://localhost:8081',
@@ -122,6 +124,9 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [clients, setClients] = useState([])
   const [contents, setContents] = useState([])
   const [comments, setComments] = useState([])
+  const [recentActivity, setRecentActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
+  const [activityUnavailable, setActivityUnavailable] = useState(false)
 
   const [clientForm, setClientForm] = useState(emptyClientForm)
   const [contentForm, setContentForm] = useState(emptyContentForm)
@@ -316,6 +321,26 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       isMounted = false
     }
   }, [loadClients, loadComments, loadContents, loadProfile])
+
+  useEffect(() => {
+    if (activeRoute !== 'dashboard') return
+    const controller = new AbortController()
+    Promise.resolve().then(async () => {
+      setActivityLoading(true)
+      setActivityUnavailable(false)
+      try {
+        setRecentActivity(await getActivity({ limit: 5, signal: controller.signal }))
+      } catch (requestError) {
+        if (requestError?.code !== 'ERR_CANCELED') {
+          setRecentActivity([])
+          setActivityUnavailable(true)
+        }
+      } finally {
+        setActivityLoading(false)
+      }
+    })
+    return () => controller.abort()
+  }, [activeRoute])
 
   useEffect(() => {
     if (isClient && activeRoute === 'clients') Promise.resolve().then(() => onNavigate('content'))
@@ -874,6 +899,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
             <div className="overview-columns">
               <div className="overview-card"><h3>תוכן אחרון</h3>{recentContents.length ? recentContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => navigateToPanel('contents')}><span>{content.title}</span><StatusBadge status={content.status} /></button>) : <p>אין עדיין תכנים להצגה</p>}</div>
               <div className="overview-card"><h3>פרסומים קרובים</h3>{upcomingContents.length ? upcomingContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => onNavigate('calendar')}><span>{content.title}</span><time>{new Date(content.plannedPublishDate).toLocaleDateString('he-IL')}</time></button>) : <p>אין פרסומים מתוכננים בקרוב</p>}</div>
+              <div className="overview-card recent-activity-widget">
+                <h3>פעילות אחרונה</h3>
+                {activityLoading && <p>טוען פעילות...</p>}
+                {!activityLoading && activityUnavailable && <p>הפעילות אינה זמינה כרגע</p>}
+                {!activityLoading && !activityUnavailable && recentActivity.length === 0 && <p>אין עדיין פעילות להצגה</p>}
+                {!activityLoading && !activityUnavailable && recentActivity.map((activity) => {
+                  const design = getActivityDesign(activity.type)
+                  return <div className="recent-activity-row" key={activity.activityId}>
+                    <span className={`recent-activity-icon activity-icon-${activity.type}`} aria-hidden="true">{design.icon}</span>
+                    <span>{design.title}</span>
+                    <time>{formatRelativeActivityTime(activity.occurredAt)}</time>
+                  </div>
+                })}
+                <button type="button" className="activity-widget-link" onClick={() => onNavigate('activity')}>
+                  לכל הפעילות <span aria-hidden="true">←</span>
+                </button>
+              </div>
             </div>
           </section>}
           {activeRoute !== 'dashboard' && notice && (
