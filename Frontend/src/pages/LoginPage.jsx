@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import axios from 'axios'
 import Cookies from 'js-cookie'
 import PageShell from '../components/PageShell.jsx'
+import api from '../api/client.js'
 
 function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthenticated, onLogout }) {
   const [username, setUsername] = useState('')
@@ -17,7 +17,7 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
     setLoading(true)
     setErrorMessage('')
     try {
-      const response = await axios.post('http://localhost:8081/users/login', { username, password }, { withCredentials: true })
+      const response = await api.post('/users/login', { username, password })
       if (!response.data.success) {
         setErrorMessage('שם המשתמש או הסיסמה אינם נכונים')
         return
@@ -44,7 +44,11 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
         </div>
         <div className="login-panel">
           <div className="login-card">
-            <div className="login-brand"><span className="brand-mark">S</span><strong>SSCM</strong></div>
+            <div className="login-brand"><span className="brand-mark">S</span><strong>Smart Social Content Manager</strong></div>
+            <div className="login-intro">
+              <h3>התוכן שלכם<br />מתוכנן חכם.</h3>
+              <p>ניהול, אישור ותזמון של כל התוכן החברתי במקום אחד.</p>
+            </div>
             <p className="eyebrow">ברוכים הבאים</p>
             <h2 id="login-title">כניסה לחשבון</h2>
             <p className="login-note">הזינו את פרטי החשבון כדי להמשיך למרחב העבודה.</p>

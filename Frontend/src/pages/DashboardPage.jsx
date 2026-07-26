@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
 import CaptionGenerator from '../components/CaptionGenerator.jsx'
 import PublishingRecommendation from '../components/PublishingRecommendation.jsx'
 import { getActivity } from '../api/activity.js'
+import api, { API_BASE_URL } from '../api/client.js'
 import { formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
-
-const api = axios.create({
-  baseURL: 'http://localhost:8081',
-  withCredentials: true,
-})
-
-const API_BASE_URL = 'http://localhost:8081'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },

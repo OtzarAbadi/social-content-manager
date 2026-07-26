@@ -5,7 +5,7 @@ React/Vite frontend for the Social Content Manager. It provides login, Admin/Cli
 ## Prerequisites
 
 - Node.js and npm
-- SSCM backend running at `http://localhost:8081`
+- SSCM backend
 
 ## Run locally
 
@@ -15,6 +15,22 @@ npm.cmd run dev
 ```
 
 Vite serves the frontend on `http://localhost:5173` by default.
+
+No `.env` file is required for normal local development. By default, the
+frontend connects to port `8081` on the same hostname used to open it:
+
+- Opening `http://localhost:5173` uses `http://localhost:8081`.
+- Opening `http://192.168.1.139:5173` from a device on the same Wi-Fi uses
+  `http://192.168.1.139:8081`.
+
+`VITE_API_URL` is an optional, highest-priority override. To use a different
+backend address, copy `.env.example` to `.env` and set:
+
+```dotenv
+VITE_API_URL=http://<YOUR_BACKEND_HOST>:8081
+```
+
+Restart the Vite development server after adding or changing the override.
 
 ## Build
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { getContentVersions, restoreContentVersion } from '../api/contentVersions.js'
+import { API_BASE_URL } from '../api/client.js'
 import StatusBadge from './StatusBadge.jsx'
 
-const API_BASE_URL = 'http://localhost:8081'
 const RESTORABLE_STATUSES = new Set(['DRAFT', 'REJECTED'])
 
 const changeTypeLabels = {

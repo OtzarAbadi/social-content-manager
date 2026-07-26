@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
 import NotificationsMenu from './NotificationsMenu.jsx'
-
-const api = axios.create({ baseURL: 'http://localhost:8081', withCredentials: true })
+import api from '../api/client.js'
 
 const icons = {
   dashboard: '⌂', calendar: '▦', contents: '▤', clients: '♙', comments: '◌',

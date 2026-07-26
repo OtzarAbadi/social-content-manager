@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({ baseURL: 'http://localhost:8081', withCredentials: true })
+import api from './client.js'
 
 export async function getPublishingStatus({ signal } = {}) {
   const response = await api.get('/publishing/status', { signal })

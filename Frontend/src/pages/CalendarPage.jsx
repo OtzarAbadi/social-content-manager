@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -8,9 +7,7 @@ import heLocale from '@fullcalendar/core/locales/he'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import statusDesign from '../components/statusDesign.js'
-
-const API_BASE_URL = 'http://localhost:8081'
-const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true })
+import api, { API_BASE_URL } from '../api/client.js'
 
 function idOf(content) { return content.content_id ?? content.contentId }
 function clientIdOf(content) { return content.clientId ?? content.client_id }
