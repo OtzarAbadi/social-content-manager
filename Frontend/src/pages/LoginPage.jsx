@@ -38,10 +38,6 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
   return (
     <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
       <section className="login-page" aria-labelledby="login-title">
-        <div className="login-visual" aria-hidden="true">
-          <div className="login-visual-content"><span className="brand-mark brand-mark-large">S</span><h1>התוכן שלכם.<br />מתוכנן חכם.</h1><p>ניהול, אישור ותזמון של כל התוכן החברתי במקום אחד.</p></div>
-          <div className="visual-orb visual-orb-one" /><div className="visual-orb visual-orb-two" />
-        </div>
         <div className="login-panel">
           <div className="login-card">
             <div className="login-brand"><span className="brand-mark">S</span><strong>Smart Social Content Manager</strong></div>
