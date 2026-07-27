@@ -4,7 +4,7 @@ export const NOTIFICATIONS_UPDATED_EVENT = 'notifications:updated'
 
 export function getNotificationPath(notification) {
   const contentId = notification.relatedContentId ?? notification.contentId
-  const entityId = notification.entityId ?? contentId
+  const entityId = notification.entityId || notification.relatedContentId
   if (notification.type === 'NEW_ACTIVITY') return '/activity'
   if (!contentId) return null
   if (notification.type === 'COMMENT_ADDED') {

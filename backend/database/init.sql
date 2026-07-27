@@ -91,7 +91,6 @@ CREATE TABLE notifications (
     title VARCHAR(180) NOT NULL,
     message TEXT NOT NULL,
     related_content_id INT NULL,
-    related_entity_id INT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),

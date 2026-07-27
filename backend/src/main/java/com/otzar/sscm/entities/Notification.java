@@ -25,7 +25,7 @@ public class Notification {
     public void setMessage(String message) { this.message = message; }
     public Long getRelatedContentId() { return relatedContentId; }
     public void setRelatedContentId(Long relatedContentId) { this.relatedContentId = relatedContentId; }
-    public Long getEntityId() { return entityId; }
+    public Long getEntityId() { return entityId != null ? entityId : relatedContentId; }
     public void setEntityId(Long entityId) { this.entityId = entityId; }
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }
