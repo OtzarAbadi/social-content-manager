@@ -38,6 +38,32 @@ The access token is used only by the backend. Do not put it in frontend environm
 Only administrators can call `POST /api/contents/{contentId}/publish/instagram`, and the
 content must be approved with a public HTTPS image URL.
 
+Instagram Insights is available to administrators at:
+
+- `GET /api/instagram/insights/account?since=YYYY-MM-DD&until=YYYY-MM-DD&period=day`
+- `GET /api/instagram/insights/media?since=YYYY-MM-DD&until=YYYY-MM-DD&mediaType=ALL&limit=25`
+- `GET /api/instagram/insights/media/{mediaId}`
+
+The Meta app/token must include `instagram_manage_insights`. After adding this permission,
+regenerate the token; an older token does not gain the permission automatically. Graph API
+Explorer tokens are commonly short-lived and may expire. Never commit or expose a token.
+
+Account metrics are requested independently: reach, views, profile views, accounts engaged,
+total interactions, and follows/unfollows. Media metrics are also isolated so an unsupported
+metric does not fail the page. Images, videos, Reels, and carousels request reach, views,
+saves, shares, total interactions, likes, and comments. Videos and Reels additionally request
+average watch time, total video watch time, follows, and profile activity. Meta availability
+varies by media type, account, API version, time range, and permission; unavailable values are
+returned as `null`, never fabricated as zero.
+
+Common errors:
+
+- `MISSING_PERMISSION`: add `instagram_manage_insights`, regenerate the token, and restart.
+- `TOKEN_INVALID`: regenerate an expired or invalid Meta token.
+- `RATE_LIMIT`: wait before manually retrying.
+- `INVALID_DATE_RANGE`: use an ordered range no longer than 93 days.
+- `META_TEMPORARY`: retry later; credentials are never included in the response.
+
 Do not store real credentials in source control. Seed and newly created user passwords are BCrypt-hashed in storage.
 
 ## Run locally

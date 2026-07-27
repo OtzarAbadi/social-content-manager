@@ -3,6 +3,7 @@ package com.otzar.sscm.controller;
 import com.otzar.sscm.models.ApiResponse;
 import com.otzar.sscm.models.ValidationErrorResponse;
 import com.otzar.sscm.service.InstagramPublishException;
+import com.otzar.sscm.service.InstagramInsightsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -12,6 +13,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -19,6 +21,24 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", false);
+        body.put("code", "INVALID_REQUEST_PARAMETER");
+        body.put("message", "Invalid value for query parameter: " + exception.getName());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(InstagramInsightsException.class)
+    public ResponseEntity<Map<String, Object>> handleInstagramInsights(InstagramInsightsException exception) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", false);
+        body.put("code", exception.getCode());
+        body.put("message", exception.getMessage());
+        return ResponseEntity.status(exception.getStatus()).body(body);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidation(MethodArgumentNotValidException exception) {

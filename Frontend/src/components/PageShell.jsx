@@ -54,7 +54,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
   }
 
   const isAdmin = profile?.role === 'ADMIN'
-  const canViewAnalytics = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
+  const canViewAnalytics = profile?.role === 'ADMIN'
   const canViewNotifications = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
   const canViewActivity = profile?.role === 'ADMIN' || profile?.role === 'CLIENT'
 

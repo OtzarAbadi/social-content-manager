@@ -1036,6 +1036,38 @@ input:focus-visible {
   .publishing-recommendation-actions { flex-direction: column; }
 }
 
+/* Instagram Insights uses the existing analytics design language. */
+.instagram-filters { display:flex; flex-wrap:wrap; gap:12px; padding:16px 18px; border:1px solid var(--border); border-radius:18px; background:var(--surface); box-shadow:var(--shadow-card); }
+.instagram-filters label { display:grid; min-width:170px; flex:1; gap:6px; color:var(--text-soft); font-size:.8rem; font-weight:700; }
+.instagram-filters select,.instagram-filters input { height:42px; padding:0 12px; border:1px solid #d8cbbb; border-radius:10px; color:var(--text); background:#fff; font:inherit; }
+.analytics-refresh { display:inline-flex; align-items:center; gap:8px; }
+.instagram-summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.instagram-summary article { transition:transform .2s ease,box-shadow .2s ease; }
+.instagram-summary article:hover,.instagram-top-card:hover { transform:translateY(-2px); }
+.instagram-chart { width:100%; height:270px; direction:ltr; }
+.instagram-chart-panel { min-height:350px; }
+.instagram-top-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.instagram-top-card { display:grid; min-width:0; padding:18px; border:1px solid var(--border); border-radius:18px; gap:12px; background:var(--surface); box-shadow:var(--shadow-card); transition:transform .2s ease,box-shadow .2s ease; }
+.instagram-top-card h3,.instagram-top-card p { margin:0; }
+.instagram-top-card strong { overflow:hidden; color:var(--text); text-overflow:ellipsis; white-space:nowrap; }
+.instagram-media-thumb,.instagram-media-fallback { width:56px; height:56px; border-radius:10px; object-fit:cover; }
+.instagram-top-card .instagram-media-thumb,.instagram-top-card .instagram-media-fallback { width:100%; height:170px; }
+.instagram-media-fallback { display:grid; place-items:center; color:var(--text-soft); background:#f1e8de; }
+.instagram-media-panel { min-width:0; }
+.instagram-media-table td { vertical-align:middle; }
+.instagram-media-table a { display:inline-flex; color:#75573e; }
+.instagram-caption { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right!important; }
+@media (max-width:900px) {
+  .instagram-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .instagram-top-grid { grid-template-columns:1fr; }
+}
+@media (max-width:600px) {
+  .instagram-filters { flex-direction:column; }
+  .instagram-filters label { width:100%; min-width:0; }
+  .instagram-summary { grid-template-columns:1fr 1fr; }
+  .instagram-chart { height:230px; }
+}
+
 /* Guaranteed notification trigger visibility in the authenticated header */
 .app-topbar > div:first-child { min-width: 0; }
 .topbar-profile { flex: 0 0 auto; min-width: max-content; }
