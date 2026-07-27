@@ -13,6 +13,7 @@ import com.otzar.sscm.service.ContentVersionService;
 import com.otzar.sscm.service.FileStorageService;
 import com.otzar.sscm.service.NotificationService;
 import com.otzar.sscm.service.SocialPublishingService;
+import com.otzar.sscm.service.InstagramPublishService;
 import com.otzar.sscm.service.ContentService.ContentOperationResult;
 import com.otzar.sscm.service.ContentService.RestoreContentVersionResult;
 import com.otzar.sscm.models.RejectContentRequest;
@@ -52,17 +53,20 @@ public class ContentController {
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
     private final SocialPublishingService socialPublishingService;
+    private final InstagramPublishService instagramPublishService;
 
     public ContentController(ContentService contentService, ContentVersionService contentVersionService,
                              AuthService authService,
                              FileStorageService fileStorageService, NotificationService notificationService,
-                             SocialPublishingService socialPublishingService) {
+                             SocialPublishingService socialPublishingService,
+                             InstagramPublishService instagramPublishService) {
         this.contentService = contentService;
         this.contentVersionService = contentVersionService;
         this.authService = authService;
         this.fileStorageService = fileStorageService;
         this.notificationService = notificationService;
         this.socialPublishingService = socialPublishingService;
+        this.instagramPublishService = instagramPublishService;
     }
 
     @GetMapping
@@ -104,6 +108,22 @@ public class ContentController {
         }
 
         return ResponseEntity.ok(content.get());
+    }
+
+    @PostMapping("/{contentId}/publish/instagram")
+    public ResponseEntity<?> publishToInstagram(
+            @PathVariable Long contentId,
+            @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiResponse(false, "Authentication required"));
+        }
+        if (!authService.isAdmin(currentUser.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false, "Administrator access required"));
+        }
+        return ResponseEntity.ok(instagramPublishService.publish(contentId));
     }
 
     @GetMapping("/{id}/versions")

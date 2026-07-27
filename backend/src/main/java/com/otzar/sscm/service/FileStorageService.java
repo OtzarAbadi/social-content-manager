@@ -22,8 +22,10 @@ public class FileStorageService {
     );
 
     private final Path uploadDirectory;
+    private final CloudinaryStorageClient cloudinaryStorageClient;
 
-    public FileStorageService() throws IOException {
+    public FileStorageService(CloudinaryStorageClient cloudinaryStorageClient) throws IOException {
+        this.cloudinaryStorageClient = cloudinaryStorageClient;
         Path workingDirectory = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
         this.uploadDirectory = workingDirectory.getFileName() != null
                 && "backend".equalsIgnoreCase(workingDirectory.getFileName().toString())
@@ -33,8 +35,11 @@ public class FileStorageService {
     }
 
     public String store(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
+        if (file == null) {
             return null;
+        }
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("Uploaded file is empty");
         }
 
         String contentType = file.getContentType();
@@ -46,6 +51,14 @@ public class FileStorageService {
                 || (!contentType.startsWith("image/") && !contentType.startsWith("video/"))
                 || !ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("Invalid file type");
+        }
+
+        if (contentType.startsWith("image/") && cloudinaryStorageClient.isConfigured()) {
+            try {
+                return cloudinaryStorageClient.uploadImage(file.getBytes());
+            } catch (IOException | RuntimeException exception) {
+                throw new IOException("Could not upload image to Cloudinary", exception);
+            }
         }
 
         String storedName = UUID.randomUUID() + "." + extension;

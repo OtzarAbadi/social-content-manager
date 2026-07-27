@@ -11,6 +11,7 @@ import api from '../services/api.js'
 import MediaPreview from '../components/MediaPreview.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Skeleton from '../components/Skeleton.jsx'
+import InstagramPublishAction from '../components/InstagramPublishAction.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 
 const statusOptions = [
@@ -94,6 +95,7 @@ function getProfileInitials(profile) {
 }
 
 const routeByPanel = { contents: 'content', clients: 'clients', comments: 'messages' }
+const sessionInstagramPublications = new Map()
 
 function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
   const location = useLocation()
@@ -166,6 +168,9 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [rejecting, setRejecting] = useState(false)
   const [historyContent, setHistoryContent] = useState(null)
   const [highlightedElementId, setHighlightedElementId] = useState('')
+  const [instagramPublications, setInstagramPublications] = useState(
+    () => Object.fromEntries(sessionInstagramPublications),
+  )
 
   const clientById = useMemo(() => {
     return new Map(clients.map((client) => [Number(getClientId(client)), client]))
@@ -362,6 +367,11 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
   function showNotice(message) {
     setNotice(message)
+  }
+
+  function handleInstagramPublished(contentId, mediaId) {
+    sessionInstagramPublications.set(String(contentId), mediaId)
+    setInstagramPublications((current) => ({ ...current, [contentId]: mediaId }))
   }
 
   function handleClientFormChange(event) {
@@ -1467,6 +1477,12 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                   היסטוריית גרסאות
                                 </button>
                               )}
+                              <InstagramPublishAction
+                                content={content}
+                                role={profile.role}
+                                publishedMediaId={instagramPublications[contentId]}
+                                onPublished={handleInstagramPublished}
+                              />
                               {isAdmin && (
                                 <button
                                   type="button"

@@ -2168,6 +2168,68 @@ button:disabled,
   }
 }
 
+.instagram-publish-action {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.instagram-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instagram-button.published {
+  border-color: #9dbb98;
+  color: #3f6841;
+  background: #eef7ec;
+  opacity: 1;
+}
+
+.instagram-technical-details {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.instagram-technical-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.instagram-technical-details span {
+  display: block;
+  max-width: 280px;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instagram-confirmation {
+  position: relative;
+}
+
+.toast-success {
+  border-color: #aac9a5;
+  color: #365f39;
+  background: #f3faf1;
+}
+
+.toast-success button:hover {
+  background: #e2f1df;
+}
+
+@media (max-width: 640px) {
+  .instagram-publish-action,
+  .instagram-button {
+    width: 100%;
+  }
+}
+
 /* Subtle motion system */
 .app-content > section,
 .workspace-panel > section,

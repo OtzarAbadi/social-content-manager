@@ -2,6 +2,7 @@ package com.otzar.sscm.controller;
 
 import com.otzar.sscm.models.ApiResponse;
 import com.otzar.sscm.models.ValidationErrorResponse;
+import com.otzar.sscm.service.InstagramPublishException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -45,6 +46,25 @@ public class ApiExceptionHandler {
                 .body(new ApiResponse(false,
                         "Unsupported media type: " + receivedType
                                 + ". Use multipart/form-data for file uploads."));
+    }
+
+    @ExceptionHandler(InstagramPublishException.class)
+    public ResponseEntity<ApiResponse> handleInstagramPublish(InstagramPublishException exception) {
+        HttpStatus status;
+        switch (exception.getReason()) {
+            case CONTENT_NOT_FOUND:
+                status = HttpStatus.NOT_FOUND;
+                break;
+            case NOT_CONFIGURED:
+                status = HttpStatus.SERVICE_UNAVAILABLE;
+                break;
+            case META_API_FAILURE:
+                status = HttpStatus.BAD_GATEWAY;
+                break;
+            default:
+                status = HttpStatus.BAD_REQUEST;
+        }
+        return ResponseEntity.status(status).body(new ApiResponse(false, exception.getMessage()));
     }
 
     private Map<String, String> fieldErrors(java.util.List<FieldError> errors) {

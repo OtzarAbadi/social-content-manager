@@ -18,6 +18,26 @@ The production profile reads these optional environment variables:
 - `SPRING_DATASOURCE_USERNAME` (defaults to `root`)
 - `SPRING_DATASOURCE_PASSWORD` (empty by default)
 
+Image uploads use Cloudinary when all of these variables are set:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+When Cloudinary is not configured, the existing local `backend/uploads` storage remains active.
+Existing `/uploads/...` records continue to work. Cloudinary is currently used for images;
+video uploads continue to use local storage.
+
+Instagram publishing requires:
+
+- `META_INSTAGRAM_USER_ID`
+- `META_PAGE_ACCESS_TOKEN`
+- `META_GRAPH_API_BASE_URL` (optional; defaults to `https://graph.facebook.com/v25.0`)
+
+The access token is used only by the backend. Do not put it in frontend environment files.
+Only administrators can call `POST /api/contents/{contentId}/publish/instagram`, and the
+content must be approved with a public HTTPS image URL.
+
 Do not store real credentials in source control. Seed and newly created user passwords are BCrypt-hashed in storage.
 
 ## Run locally
@@ -25,7 +45,23 @@ Do not store real credentials in source control. Seed and newly created user pas
 The frontend currently calls the backend on port `8081`:
 
 ```powershell
+$env:CLOUDINARY_CLOUD_NAME='your-cloud-name'
+$env:CLOUDINARY_API_KEY='your-api-key'
+$env:CLOUDINARY_API_SECRET='your-api-secret'
+$env:META_INSTAGRAM_USER_ID='your-instagram-user-id'
+$env:META_PAGE_ACCESS_TOKEN='your-page-access-token'
+$env:META_GRAPH_API_BASE_URL='https://graph.facebook.com/v25.0'
 $env:SERVER_PORT=8081
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=production
+```
+
+For local-only uploads without Cloudinary, remove the Cloudinary variables from the current
+PowerShell session before starting:
+
+```powershell
+Remove-Item Env:CLOUDINARY_CLOUD_NAME -ErrorAction SilentlyContinue
+Remove-Item Env:CLOUDINARY_API_KEY -ErrorAction SilentlyContinue
+Remove-Item Env:CLOUDINARY_API_SECRET -ErrorAction SilentlyContinue
 .\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=production
 ```
 

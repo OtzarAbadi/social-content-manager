@@ -37,9 +37,11 @@ api.interceptors.response.use(
       data: error.response?.data,
       message: error.message,
     })
-    window.dispatchEvent(new CustomEvent('sscm:api-error', {
-      detail: { message: getApiErrorMessage(error) },
-    }))
+    if (!error.config?.suppressGlobalErrorToast) {
+      window.dispatchEvent(new CustomEvent('sscm:api-error', {
+        detail: { message: getApiErrorMessage(error) },
+      }))
+    }
     return Promise.reject(error)
   },
 )
