@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
+import { X } from 'lucide-react'
 import { getContentVersions, restoreContentVersion } from '../api/contentVersions.js'
-import { API_BASE_URL } from '../api/client.js'
 import StatusBadge from './StatusBadge.jsx'
+import MediaPreview from './MediaPreview.jsx'
 
 const RESTORABLE_STATUSES = new Set(['DRAFT', 'REJECTED'])
 
@@ -19,28 +20,6 @@ function formatDateTime(value) {
   if (!value) return 'לא צוין'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('he-IL')
-}
-
-function resolveFileUrl(fileUrl) {
-  if (!fileUrl) return ''
-  if (/^https?:\/\//.test(fileUrl)) {
-    try {
-      const url = new URL(fileUrl)
-      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : ''
-    } catch {
-      return ''
-    }
-  }
-  return /^\/uploads\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+(?:\?[^\s#]*)?(?:#[^\s]*)?$/.test(fileUrl)
-    ? `${API_BASE_URL}${fileUrl}`
-    : ''
-}
-
-function getMediaKind(version) {
-  const path = (version.fileUrl || '').split('?')[0].toLowerCase()
-  if (/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(path) || version.contentType === 'IMAGE') return 'image'
-  if (/\.(mp4|webm|mov|avi|mkv)$/.test(path) || version.contentType === 'VIDEO') return 'video'
-  return 'file'
 }
 
 const comparisonFields = [
@@ -78,23 +57,9 @@ function ComparisonValue({ field, version }) {
   if (field === 'status' && value) return <StatusBadge status={value} />
   if (field !== 'fileUrl') return <span>{displayed}</span>
 
-  const mediaUrl = resolveFileUrl(value)
-  const mediaKind = getMediaKind(version)
   return (
     <div className="version-comparison-media-wrap">
-      {mediaUrl && mediaKind === 'image' && (
-        <a className="version-comparison-media" href={mediaUrl} target="_blank" rel="noreferrer noopener">
-          <img src={mediaUrl} alt={`מדיה מגרסה ${version.versionNumber}`} />
-        </a>
-      )}
-      {mediaUrl && mediaKind === 'video' && (
-        <video className="version-comparison-media" src={mediaUrl} controls preload="metadata">
-          <a href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת הווידאו</a>
-        </video>
-      )}
-      {mediaUrl && mediaKind === 'file' && (
-        <a className="file-link" href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת קובץ המדיה</a>
-      )}
+      <MediaPreview path={value} type={version.contentType} alt={`מדיה מגרסה ${version.versionNumber}`} />
       <span className="version-comparison-url" dir="ltr">{displayed}</span>
     </div>
   )
@@ -156,10 +121,12 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
 
   useEffect(() => {
     const controller = new AbortController()
-    setVersions([])
-    setRestoreError('')
-    setRestoreSuccess('')
-    loadHistory(controller.signal)
+    Promise.resolve().then(() => {
+      setVersions([])
+      setRestoreError('')
+      setRestoreSuccess('')
+      loadHistory(controller.signal)
+    })
     return () => controller.abort()
   }, [loadHistory])
 
@@ -247,7 +214,7 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={closeIfIdle}>
       <section className="modal-card version-history-modal" role="dialog" aria-modal="true" aria-labelledby="version-history-title" dir="rtl" onMouseDown={(event) => event.stopPropagation()}>
-        <button type="button" className="modal-close" onClick={closeIfIdle} disabled={restoringVersion !== null} aria-label="סגירת היסטוריית גרסאות">×</button>
+        <button type="button" className="modal-close" onClick={closeIfIdle} disabled={restoringVersion !== null} aria-label="סגירת היסטוריית גרסאות"><X size={20} /></button>
         <header className="version-history-header">
           <p>תוכן #{contentId}</p>
           <h2 id="version-history-title">היסטוריית גרסאות</h2>
@@ -320,8 +287,6 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
 
               <ol className="version-history-list">
               {versions.map((version) => {
-                const mediaUrl = resolveFileUrl(version.fileUrl)
-                const mediaKind = getMediaKind(version)
                 const key = versionKey(version)
                 return (
                   <li className="version-history-item" key={version.contentVersionId ?? version.versionNumber}>
@@ -345,13 +310,11 @@ function ContentVersionHistoryModal({ content, role, onClose, onRestored }) {
                       <div><dt>סוג תוכן</dt><dd>{contentTypeLabels[version.contentType] || version.contentType || 'לא צוין'}</dd></div>
                       <div><dt>מועד פרסום</dt><dd>{formatDateTime(version.plannedPublishDate)}</dd></div>
                     </dl>
-                    {mediaUrl && mediaKind === 'image' && <a className="version-history-media" href={mediaUrl} target="_blank" rel="noreferrer noopener"><img src={mediaUrl} alt={`מדיה מגרסה ${version.versionNumber}`} /></a>}
-                    {mediaUrl && mediaKind === 'video' && <video className="version-history-media" src={mediaUrl} controls preload="metadata"><a href={mediaUrl}>פתיחת הווידאו</a></video>}
-                    {mediaUrl && mediaKind === 'file' && <a className="file-link" href={mediaUrl} target="_blank" rel="noreferrer noopener">פתיחת קובץ המדיה</a>}
+                    {version.fileUrl && <MediaPreview path={version.fileUrl} type={version.contentType} alt={`מדיה מגרסה ${version.versionNumber}`} />}
                     {canRestore && (
                       <div className="version-restore-actions">
                         <button type="button" className="ghost-button small-button version-restore-button" disabled={restoringVersion !== null} onClick={() => handleRestore(version.versionNumber)}>
-                          {restoringVersion === version.versionNumber ? 'משחזר...' : 'שחזור גרסה זו'}
+                          {restoringVersion === version.versionNumber ? <><span className="button-spinner dark-spinner" />משחזר...</> : 'שחזור גרסה זו'}
                         </button>
                       </div>
                     )}

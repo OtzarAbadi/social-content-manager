@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Eye, MoveHorizontal, X } from 'lucide-react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -7,14 +8,11 @@ import heLocale from '@fullcalendar/core/locales/he'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import statusDesign from '../components/statusDesign.js'
-import api, { API_BASE_URL } from '../api/client.js'
+import api from '../services/api.js'
+import MediaPreview from '../components/MediaPreview.jsx'
 
 function idOf(content) { return content.content_id ?? content.contentId }
 function clientIdOf(content) { return content.clientId ?? content.client_id }
-function mediaUrl(path) { return !path ? '' : path.startsWith('http') ? path : `${API_BASE_URL}${path}` }
-function isVideo(content) {
-  return content.content_type === 'VIDEO' || /\.(mp4|webm|mov)(\?.*)?$/i.test(content.file_url || '')
-}
 function toLocalDateTime(date) {
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
@@ -100,7 +98,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
       <section className="calendar-card" aria-labelledby="calendar-title">
         <div className="calendar-heading">
           <div><p className="eyebrow">תכנון ופרסום</p><h2 id="calendar-title">לוח תוכן</h2></div>
-          {profile && <span className="calendar-permission">{isAdmin ? '↔ גרירה פעילה למנהלים' : '◉ תצוגה לקריאה בלבד'}</span>}
+          {profile && <span className="calendar-permission">{isAdmin ? <><MoveHorizontal size={18} /> גרירה פעילה למנהלים</> : <><Eye size={18} /> תצוגה לקריאה בלבד</>}</span>}
         </div>
         {notice && <p className="calendar-notice" role="status">{notice}</p>}
         {error && <div className="calendar-error" role="alert">{error} <button type="button" onClick={loadCalendar}>טעינה מחדש</button></div>}
@@ -130,7 +128,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
 
       {selected && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelected(null)}>
         <section className="calendar-modal" role="dialog" aria-modal="true" aria-labelledby="event-title" onMouseDown={(event) => event.stopPropagation()}>
-          <button className="modal-close" type="button" aria-label="סגירה" onClick={() => setSelected(null)}>×</button>
+          <button className="modal-close" type="button" aria-label="סגירה" onClick={() => setSelected(null)}><X size={20} /></button>
           <StatusBadge status={selected.status} />
           <h2 id="event-title">{selected.title}</h2>
           <p className="calendar-description">{selected.description || 'לא נוסף תיאור.'}</p>
@@ -139,10 +137,9 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
             <div><dt>שעת פרסום</dt><dd>{plannedDate?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</dd></div>
             {isAdmin && <div><dt>לקוח</dt><dd>{selectedClient || 'לקוח לא זמין'}</dd></div>}
           </dl>
-          {selected.file_url ? (isVideo(selected)
-            ? <video className="calendar-media" controls src={mediaUrl(selected.file_url)}>אין תמיכה בתצוגת הווידאו.</video>
-            : <img className="calendar-media" src={mediaUrl(selected.file_url)} alt={`מדיה עבור ${selected.title}`} onError={(event) => { event.currentTarget.hidden = true }} />
-          ) : <p className="media-missing">אין מדיה מצורפת לתוכן זה.</p>}
+          {selected.file_url
+            ? <MediaPreview path={selected.file_url} type={selected.content_type} alt={`מדיה עבור ${selected.title}`} className="calendar-media-preview" />
+            : <p className="media-missing">אין מדיה מצורפת לתוכן זה.</p>}
           <button className="primary-button" type="button" onClick={() => onNavigate('dashboard')}>פתיחת עמוד התוכן</button>
         </section>
       </div>}

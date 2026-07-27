@@ -1,4 +1,4 @@
-import api from './client.js'
+import api from '../services/api.js'
 
 export async function generateCaptionSuggestion(request, signal) {
   const response = await api.post('/contents/caption-suggestions', request, { signal })

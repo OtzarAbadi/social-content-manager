@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
+import Skeleton from '../components/Skeleton.jsx'
 import { getActivity } from '../api/activity.js'
-import { getActivityDesign } from '../components/activityDesign.js'
+import { ActivityIcon, getActivityDesign } from '../components/activityDesign.js'
 
 const groupOrder = ['today', 'yesterday', 'previous']
 const groupLabels = {
@@ -83,7 +84,7 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
       </div>
       <p className="activity-page-intro">כל השינויים האחרונים בתוכן, באישורים ובתכנון הפרסום.</p>
 
-      {loading && <div className="activity-page-state" role="status">טוען את הפעילות...</div>}
+      {loading && <Skeleton rows={4} className="page-skeleton" />}
       {!loading && error && <div className="activity-page-state activity-page-error" role="alert">
         <p>{error}</p>
         <button type="button" className="secondary-button" onClick={() => loadActivity()}>נסו שוב</button>
@@ -101,7 +102,7 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
               const design = getActivityDesign(activity.type)
               const formatted = formatActivityDate(activity.occurredAt)
               return <article className="activity-item" key={activity.activityId}>
-                <span className={`activity-icon activity-icon-${activity.type}`} aria-hidden="true">{design.icon}</span>
+                <span className={`activity-icon activity-icon-${activity.type}`}><ActivityIcon type={activity.type} /></span>
                 <div className="activity-item-body">
                   <div className="activity-item-heading">
                     <div>

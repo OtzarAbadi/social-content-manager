@@ -1,4 +1,4 @@
-import api from './client.js'
+import api from '../services/api.js'
 
 export const NOTIFICATIONS_UPDATED_EVENT = 'notifications:updated'
 

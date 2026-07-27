@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { CalendarClock, CircleOff, Server } from 'lucide-react'
 import PageShell from '../components/PageShell.jsx'
+import Skeleton from '../components/Skeleton.jsx'
 import { getPublishingStatus } from '../api/publishing.js'
 
 function IntegrationsPage(props) {
@@ -26,7 +28,7 @@ function IntegrationsPage(props) {
           </div>
         </div>
 
-        {state === 'loading' && <div className="state-card" role="status">טוען את מצב ספק הפרסום...</div>}
+        {state === 'loading' && <Skeleton rows={3} className="page-skeleton" />}
         {state === 'forbidden' && <div className="state-card error-state" role="alert">אין לך הרשאה לצפות בעמוד זה.</div>}
         {state === 'error' && <div className="state-card error-state" role="alert">לא ניתן לטעון את מצב האינטגרציות.</div>}
 
@@ -34,17 +36,17 @@ function IntegrationsPage(props) {
           <>
             <div className="integration-grid">
               <article className="integration-card">
-                <span className="integration-card-icon" aria-hidden="true">◆</span>
+                <span className="integration-card-icon" aria-hidden="true"><Server size={24} /></span>
                 <h3>מצב ספק הפרסום</h3>
                 <strong>{status.activeProvider === 'LOCAL' ? 'ספק מקומי' : status.activeProvider}</strong>
               </article>
               <article className="integration-card">
-                <span className="integration-card-icon" aria-hidden="true">○</span>
+                <span className="integration-card-icon" aria-hidden="true"><CircleOff size={24} /></span>
                 <h3>חיבור חיצוני ל-Meta</h3>
                 <strong>לא הוגדר</strong>
               </article>
               <article className="integration-card">
-                <span className="integration-card-icon" aria-hidden="true">◷</span>
+                <span className="integration-card-icon" aria-hidden="true"><CalendarClock size={24} /></span>
                 <h3>פרסום אוטומטי</h3>
                 <strong>{status.automaticPublishingEnabled ? 'פעיל' : 'לא פעיל'}</strong>
                 <small>תדירות בדיקה: כל {status.pollingIntervalSeconds} שניות</small>

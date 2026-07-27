@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
+import Toolbar from '../components/Toolbar.jsx'
+import Skeleton from '../components/Skeleton.jsx'
 import {
   announceNotificationsUpdated,
   getNotifications,
@@ -90,12 +92,12 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
           <h2 id="notifications-page-title">כל ההתראות</h2>
           <p>העדכונים האחרונים הזמינים עבורך במקום אחד.</p>
         </div>
-        {hasUnread && <button type="button" className="secondary-button" onClick={markAllRead} disabled={markingAll}>
-          {markingAll ? 'מסמן...' : 'סימון הכל כנקרא'}
-        </button>}
+        {hasUnread && <Toolbar label="פעולות התראות"><button type="button" className="secondary-button" onClick={markAllRead} disabled={markingAll}>
+          {markingAll ? <><span className="button-spinner dark-spinner" />מסמן...</> : 'סימון הכל כנקרא'}
+        </button></Toolbar>}
       </header>
 
-      {loading && <div className="notifications-page-state" role="status">טוען התראות...</div>}
+      {loading && <Skeleton rows={4} className="page-skeleton" />}
       {!loading && error && <div className="notifications-page-state notifications-page-error" role="alert">
         <p>{error}</p>
         <button type="button" className="secondary-button" onClick={loadNotifications}>נסו שוב</button>
@@ -122,7 +124,7 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
               <time dateTime={notification.createdAt || undefined}>{formatDate(notification.createdAt)}</time>
             </div>
             {unread && <button type="button" className="secondary-button small-button" onClick={() => markOneRead(notification)} disabled={updatingId === notification.notificationId}>
-              {updatingId === notification.notificationId ? 'מסמן...' : 'סימון כנקרא'}
+              {updatingId === notification.notificationId ? <><span className="button-spinner dark-spinner" />מסמן...</> : 'סימון כנקרא'}
             </button>}
           </article>
         })}

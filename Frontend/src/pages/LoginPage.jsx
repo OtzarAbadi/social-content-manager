@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import Cookies from 'js-cookie'
+import { Eye, EyeOff, LockKeyhole, User } from 'lucide-react'
 import PageShell from '../components/PageShell.jsx'
-import api from '../api/client.js'
+import api from '../services/api.js'
+import { APP_INITIAL, APP_NAME } from '../config/appConfig.js'
 
 function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthenticated, onLogout }) {
   const [username, setUsername] = useState('')
@@ -40,7 +42,7 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
       <section className="login-page" aria-labelledby="login-title">
         <div className="login-panel">
           <div className="login-card">
-            <div className="login-brand"><span className="brand-mark">S</span><strong>Smart Social Content Manager</strong></div>
+            <div className="login-brand"><span className="brand-mark">{APP_INITIAL}</span><strong>{APP_NAME}</strong></div>
             <div className="login-intro">
               <h3>התוכן שלכם<br />מתוכנן חכם.</h3>
               <p>ניהול, אישור ותזמון של כל התוכן החברתי במקום אחד.</p>
@@ -49,8 +51,8 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
             <h2 id="login-title">כניסה לחשבון</h2>
             <p className="login-note">הזינו את פרטי החשבון כדי להמשיך למרחב העבודה.</p>
             <form className="field-stack" onSubmit={handleLogin}>
-              <label>שם משתמש<span className="input-with-icon"><i aria-hidden="true">♙</i><input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="שם המשתמש שלך" required /></span></label>
-              <label>סיסמה<span className="input-with-icon"><i aria-hidden="true">◈</i><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="הסיסמה שלך" required /><button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'הסתרת סיסמה' : 'הצגת סיסמה'}>{showPassword ? '◉' : '◎'}</button></span></label>
+              <label>שם משתמש<span className="input-with-icon"><i aria-hidden="true"><User size={20} /></i><input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="שם המשתמש שלך" required /></span></label>
+              <label>סיסמה<span className="input-with-icon"><i aria-hidden="true"><LockKeyhole size={20} /></i><input autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="הסיסמה שלך" required /><button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'הסתרת סיסמה' : 'הצגת סיסמה'}>{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button></span></label>
               {errorMessage && <p className="login-error" role="alert">{errorMessage}</p>}
               <button className="login-button" type="submit" disabled={isLoginDisabled}>{loading ? <><span className="button-spinner" /> מתחבר...</> : 'כניסה למערכת'}</button>
             </form>

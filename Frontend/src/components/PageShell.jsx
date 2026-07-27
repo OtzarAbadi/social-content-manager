@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react'
+import {
+  Activity, BarChart3, Bell, CalendarDays, FileText, LayoutDashboard,
+  LogOut, MessageCircle, Plug, Users,
+} from 'lucide-react'
 import NotificationsMenu from './NotificationsMenu.jsx'
-import api from '../api/client.js'
+import api from '../services/api.js'
+import { APP_INITIAL, APP_NAME } from '../config/appConfig.js'
 
 const icons = {
-  dashboard: '⌂', calendar: '▦', contents: '▤', clients: '♙', comments: '◌',
-  analytics: '↗', notifications: '♢', activity: '◷', integrations: '⌁', logout: '↪',
+  dashboard: <LayoutDashboard />, calendar: <CalendarDays />, contents: <FileText />,
+  clients: <Users />, comments: <MessageCircle />, analytics: <BarChart3 />,
+  notifications: <Bell />, activity: <Activity />, integrations: <Plug />, logout: <LogOut />,
 }
 
 const pageTitles = {
@@ -23,11 +29,18 @@ function initials(profile) {
 
 function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout, children }) {
   const [profile, setProfile] = useState(null)
+  const [profileError, setProfileError] = useState('')
 
   useEffect(() => {
     if (!isAuthenticated) return
     Promise.resolve().then(async () => {
-      try { setProfile((await api.get('/users/me')).data) } catch { setProfile(null) }
+      setProfileError('')
+      try {
+        setProfile((await api.get('/users/me')).data)
+      } catch {
+        setProfile(null)
+        setProfileError('Unable to load your profile. Check the backend connection and try again.')
+      }
     })
   }, [isAuthenticated])
 
@@ -48,7 +61,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
   return (
     <div className="authenticated-shell" dir="rtl">
       <aside className="app-sidebar" aria-label="ניווט ראשי">
-        <div className="brand-lockup"><span className="brand-mark">S</span><div><strong>SSCM</strong><small>Social Studio</small></div></div>
+        <div className="brand-lockup"><span className="brand-mark">{APP_INITIAL}</span><div><strong>{APP_NAME}</strong></div></div>
         <nav className="sidebar-nav">
           <a className={`route-dashboard ${activeRoute === 'dashboard' ? 'active' : ''}`} href={routes.dashboard.path} onClick={(e) => navigate(e, 'dashboard')}><i>{icons.dashboard}</i><span>לוח בקרה</span></a>
           <a className={`route-calendar ${activeRoute === 'calendar' ? 'active' : ''}`} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
@@ -64,8 +77,9 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
       </aside>
 
       <div className="app-main">
+        {profileError && <p className="error-banner" role="alert">{profileError}</p>}
         <header className="app-topbar">
-          <div><p className="topbar-kicker">Smart Social Content Manager</p><h1>{pageTitles[activeRoute] || 'SSCM'}</h1></div>
+          <div><p className="topbar-kicker">{APP_NAME}</p><h1>{pageTitles[activeRoute] || APP_NAME}</h1></div>
           <div className="topbar-profile">
             <NotificationsMenu onNavigate={onNavigate} />
             <div className="profile-copy"><strong>{profile?.fullName || profile?.username || 'משתמש'}</strong><span>{profile ? (isAdmin ? 'מנהל' : 'לקוח') : 'טוען...'}</span></div>

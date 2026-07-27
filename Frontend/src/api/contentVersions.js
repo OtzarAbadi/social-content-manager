@@ -1,4 +1,4 @@
-import api from './client.js'
+import api from '../services/api.js'
 
 export async function getContentVersions(contentId, signal) {
   const response = await api.get(`/contents/${contentId}/versions`, { signal })

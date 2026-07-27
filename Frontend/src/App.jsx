@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
 import './App.css'
 
-import DashboardPage from './pages/DashboardPage.jsx'
-import LoginPage from './pages/LoginPage.jsx'
-import CalendarPage from './pages/CalendarPage.jsx'
-import AnalyticsPage from './pages/AnalyticsPage.jsx'
-import NotificationsPage from './pages/NotificationsPage.jsx'
-import ActivityPage from './pages/ActivityPage.jsx'
-import IntegrationsPage from './pages/IntegrationsPage.jsx'
+import GlobalToast from './components/GlobalToast.jsx'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage.jsx'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage.jsx'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'))
+const ActivityPage = lazy(() => import('./pages/ActivityPage.jsx'))
+const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage.jsx'))
 
 const defaultRoute = 'login'
 
@@ -130,6 +132,8 @@ function App() {
   }
 
   return (
+    <>
+      <Suspense fallback={<div className="route-loader" role="status" aria-label="טוען עמוד"><span /></div>}>
       <ActivePage
           activeRoute={activeRoute}
           routes={routes}
@@ -138,6 +142,9 @@ function App() {
           onAuthenticated={handleAuthenticated}
           onLogout={handleLogout}
       />
+      </Suspense>
+      <GlobalToast />
+    </>
   )
 }
 

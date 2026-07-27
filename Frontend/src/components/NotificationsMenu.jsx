@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bell } from 'lucide-react'
 import {
   announceNotificationsUpdated,
   getNotifications,
@@ -81,9 +82,7 @@ function NotificationsMenu({ onNavigate }) {
 
   return <div className="notifications-menu" ref={rootRef}>
     <button className="notification-button" type="button" aria-label="התראות" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-      <svg className="notification-bell-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-      </svg>
+      <Bell className="notification-bell-icon" size={20} aria-hidden="true" />
       {unreadCount > 0 && <span className="notification-count">{unreadCount > 99 ? '99+' : unreadCount}</span>}
     </button>
     {open && <section className="notifications-panel" aria-label="התראות">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { APP_NAME } from '../config/appConfig.js'
 import PageShell from '../components/PageShell.jsx'
 import { getAnalyticsDashboard, getAnalyticsProfile } from '../api/analytics.js'
 
@@ -53,7 +54,7 @@ function AnalyticsPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     }
   }, [])
 
-  useEffect(() => { loadAnalytics() }, [loadAnalytics])
+  useEffect(() => { Promise.resolve().then(loadAnalytics) }, [loadAnalytics])
 
   const monthlyMaximum = useMemo(() => Math.max(0, ...(analytics?.scheduledByMonth || []).map((item) => Number(item.count) || 0)), [analytics])
   const isAdmin = profile?.role === 'ADMIN'
@@ -62,7 +63,7 @@ function AnalyticsPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   return <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
     <section className="analytics-page" dir="rtl">
       <header className="analytics-heading">
-        <div><p className="eyebrow">תמונת מצב פנימית</p><h2>{isClient ? 'הפעילות של העסק שלך' : 'אנליטיקת תוכן'}</h2><p>נתוני SSCM שוטפים על תוכן, תכנון ותקשורת.</p></div>
+        <div><p className="eyebrow">תמונת מצב פנימית</p><h2>{isClient ? 'הפעילות של העסק שלך' : 'אנליטיקת תוכן'}</h2><p>נתוני {APP_NAME} שוטפים על תוכן, תכנון ותקשורת.</p></div>
         {analytics?.generatedAt && <time>עודכן: {formatGeneratedAt(analytics.generatedAt)}</time>}
       </header>
 

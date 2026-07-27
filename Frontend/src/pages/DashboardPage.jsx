@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { FilePlus2, MessageCircle, Users } from 'lucide-react'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
 import CaptionGenerator from '../components/CaptionGenerator.jsx'
 import PublishingRecommendation from '../components/PublishingRecommendation.jsx'
 import { getActivity } from '../api/activity.js'
-import api, { API_BASE_URL } from '../api/client.js'
-import { formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
+import api from '../services/api.js'
+import MediaPreview from '../components/MediaPreview.jsx'
+import EmptyState from '../components/EmptyState.jsx'
+import Skeleton from '../components/Skeleton.jsx'
+import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
@@ -40,20 +44,6 @@ const emptyContentForm = {
   content_type: 'IMAGE',
   status: 'DRAFT',
   plannedPublishDate: '',
-}
-
-function getFileUrl(fileUrl) {
-  if (!fileUrl) return ''
-  return fileUrl.startsWith('http') ? fileUrl : `${API_BASE_URL}${fileUrl}`
-}
-
-function getMediaKind(content) {
-  const path = (content.file_url || '').split('?')[0].toLowerCase()
-  if (/\.(jpg|jpeg|png|gif|webp|bmp)$/.test(path)) return 'image'
-  if (/\.(mp4|webm|mov|avi|mkv)$/.test(path)) return 'video'
-  if (content.content_type === 'IMAGE') return 'image'
-  if (content.content_type === 'VIDEO') return 'video'
-  return 'file'
 }
 
 const emptyCommentForm = {
@@ -900,7 +890,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 {!activityLoading && !activityUnavailable && recentActivity.map((activity) => {
                   const design = getActivityDesign(activity.type)
                   return <div className="recent-activity-row" key={activity.activityId}>
-                    <span className={`recent-activity-icon activity-icon-${activity.type}`} aria-hidden="true">{design.icon}</span>
+                    <span className={`recent-activity-icon activity-icon-${activity.type}`}><ActivityIcon type={activity.type} /></span>
                     <span>{design.title}</span>
                     <time>{formatRelativeActivityTime(activity.occurredAt)}</time>
                   </div>
@@ -949,10 +939,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 </div>
               </div>
 
-              {loading.clients && <p className="entity-state">טוען לקוחות...</p>}
+              {loading.clients && <Skeleton rows={3} />}
               {errors.clients && <p className="entity-state entity-state-error">{errors.clients}</p>}
               {!loading.clients && !errors.clients && clients.length === 0 && (
-                <p className="entity-state">אין לקוחות להצגה</p>
+                <EmptyState icon={Users} title="עדיין אין לקוחות" description="הוסיפו את הלקוח הראשון כדי להתחיל לנהל עבורו תוכן." actionLabel="הוספת לקוח" onAction={() => setShowCreateForm((current) => ({ ...current, clients: true }))} />
               )}
 
               {filteredResults.clients && !loading.clients && !errors.clients && clients.length > 0 && (
@@ -1157,7 +1147,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                     </label>
                   </div>
                   <button className="primary-button" type="submit" disabled={saving.client}>
-                    {saving.client ? 'שומר...' : 'שמירת לקוח'}
+                    {saving.client ? <><span className="button-spinner" />שומר...</> : 'שמירת לקוח'}
                   </button>
                 </form>
               )}
@@ -1244,10 +1234,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 </div>
               </div>
 
-              {loading.contents && <p className="entity-state">טוען תכנים...</p>}
+              {loading.contents && <Skeleton rows={3} />}
               {errors.contents && <p className="entity-state entity-state-error">{errors.contents}</p>}
               {!loading.contents && !errors.contents && contents.length === 0 && (
-                <p className="entity-state">אין תכנים להצגה</p>
+                <EmptyState icon={FilePlus2} title="עדיין אין תוכן" description="צרו תוכן חדש והתחילו לתכנן את הפרסום הבא." actionLabel="יצירת תוכן חדש" onAction={() => setShowCreateForm((current) => ({ ...current, contents: true }))} />
               )}
 
               {filteredResults.contents && !loading.contents && !errors.contents && contents.length > 0 && (
@@ -1377,21 +1367,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                     : '-'}
                                 </span>
                               </div>
-                              {content.file_url && getMediaKind(content) === 'image' && (
-                                <a href={getFileUrl(content.file_url)} target="_blank" rel="noreferrer">
-                                  <img className="content-media" src={getFileUrl(content.file_url)} alt={content.title} />
-                                </a>
-                              )}
-                              {content.file_url && getMediaKind(content) === 'video' && (
-                                <video className="content-media" src={getFileUrl(content.file_url)} controls preload="metadata">
-                                  <a href={getFileUrl(content.file_url)}>פתיחת הווידאו</a>
-                                </video>
-                              )}
-                              {content.file_url && getMediaKind(content) === 'file' && (
-                                <a className="file-link" href={getFileUrl(content.file_url)} target="_blank" rel="noreferrer">
-                                  קובץ מצורף
-                                </a>
-                              )}
+                              {content.file_url && <MediaPreview path={content.file_url} type={content.content_type} alt={content.title} />}
                               {isAdmin && rejectionReason && (
                                 <aside className="rejection-reason" aria-label="סיבת דחייה">
                                   <strong>סיבת הדחייה</strong>
@@ -1576,7 +1552,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         )}
                       </div>
                       <button className="primary-button" type="submit" disabled={saving.content}>
-                        {saving.content ? 'שומר...' : 'שמירת תוכן'}
+                        {saving.content ? <><span className="button-spinner" />שומר...</> : 'שמירת תוכן'}
                       </button>
                     </form>
                   )}
@@ -1653,14 +1629,14 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                   </label>
                 </div>
                 <button className="primary-button" type="submit" disabled={saving.comment}>
-                  {saving.comment ? 'שומר...' : 'שמירת תגובה'}
+                  {saving.comment ? <><span className="button-spinner" />שומר...</> : 'שמירת תגובה'}
                 </button>
               </form>
 
-              {loading.comments && <p className="entity-state">טוען תגובות...</p>}
+              {loading.comments && <Skeleton rows={3} />}
               {errors.comments && <p className="entity-state entity-state-error">{errors.comments}</p>}
               {!loading.comments && !errors.comments && comments.length === 0 && (
-                <p className="entity-state">אין תגובות להצגה</p>
+                <EmptyState icon={MessageCircle} title="עדיין אין תגובות" description="תגובות ושיחות על התוכן יופיעו כאן." />
               )}
 
               {filteredResults.comments && !loading.comments && !errors.comments && comments.length > 0 && (
@@ -1726,7 +1702,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                   ביטול
                 </button>
                 <button className="danger-button" type="submit" disabled={rejecting || !rejectionDialog.reason.trim()}>
-                  {rejecting ? 'דוחה...' : 'דחיית התוכן'}
+                  {rejecting ? <><span className="button-spinner" />דוחה...</> : 'דחיית התוכן'}
                 </button>
               </div>
             </form>
