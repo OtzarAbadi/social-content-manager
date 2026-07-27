@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import Cookies from 'js-cookie'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 
 import GlobalToast from './components/GlobalToast.jsx'
@@ -67,53 +68,41 @@ const routes = {
   },
 }
 
-function getRouteFromPath() {
+function getRouteFromPath(pathname = window.location.pathname, search = window.location.search) {
+  if (/^\/content\/\d+\/?$/.test(pathname)) {
+    return new URLSearchParams(search).get('tab') === 'comments' ? 'messages' : 'content'
+  }
   const matchingRoute = Object.entries(routes).find(
-      ([, route]) => route.path === window.location.pathname
+      ([, route]) => route.path === pathname
   )
 
   return matchingRoute?.[0] ?? defaultRoute
 }
 
 function App() {
-  const [activeRoute, setActiveRoute] = useState(getRouteFromPath)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [activeRoute, setActiveRoute] = useState(() => getRouteFromPath(location.pathname, location.search))
   const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(Cookies.get('token')))
   const ActivePage = routes[activeRoute].Component
 
   useEffect(() => {
-
-    const syncRouteWithUrl = () => {
-      const requestedRoute = getRouteFromPath()
-      if (!isAuthenticated && requestedRoute !== 'login') {
-        window.history.replaceState(null, '', routes.login.path)
-        setActiveRoute('login')
-        return
-      }
-      setActiveRoute(requestedRoute)
-    }
-
-    window.addEventListener('popstate', syncRouteWithUrl)
-
     Promise.resolve().then(() => {
-      if (!isAuthenticated && getRouteFromPath() !== 'login') {
-        window.history.replaceState(null, '', routes.login.path)
+      const requestedRoute = getRouteFromPath(location.pathname, location.search)
+      if (!isAuthenticated && requestedRoute !== 'login') {
+        navigate(routes.login.path, { replace: true })
         setActiveRoute('login')
-      } else if (isAuthenticated && getRouteFromPath() === 'login') {
-        window.history.replaceState(null, '', routes.dashboard.path)
+      } else if (isAuthenticated && requestedRoute === 'login') {
+        navigate(routes.dashboard.path, { replace: true })
         setActiveRoute('dashboard')
-      } else if (!Object.values(routes).some(r => r.path === window.location.pathname)) {
-        window.history.replaceState(null, '', routes[defaultRoute].path)
+      } else {
+        setActiveRoute(requestedRoute)
       }
     })
-
-    return () => {
-      window.removeEventListener('popstate', syncRouteWithUrl)
-    }
-
-  }, [isAuthenticated])
+  }, [isAuthenticated, location.pathname, location.search, navigate])
 
   function navigateTo(routeKey) {
-    window.history.pushState(null, '', routes[routeKey].path)
+    navigate(routes[routeKey].path)
     setActiveRoute(routeKey)
   }
 

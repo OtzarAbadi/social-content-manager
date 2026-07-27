@@ -67,7 +67,7 @@ public class CommentController {
         comment.setCommentText(request.getCommentText());
         comment.setUserId(actor.getUser_id());
         Comment created = commentService.create(comment);
-        notificationService.notifyOppositeParty(content.get(), actor,
+        notificationService.notifyOppositeParty(content.get(), actor, created.getCommentId(),
                 "נוספה תגובה לתוכן ‘" + content.get().getTitle() + "’: " + created.getCommentText());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }

@@ -45,24 +45,26 @@ public class NotificationService {
 
     public void notifyClient(Content content, NotificationType type, String title, String message) {
         clientRepository.findById(content.getClientId())
-                .ifPresent(client -> create(client.getUser_id(), type, title, message, content.getContent_id()));
+                .ifPresent(client -> create(client.getUser_id(), type, title, message,
+                        content.getContent_id(), content.getContent_id()));
     }
 
     public void notifyAdmin(Content content, NotificationType type, String title, String message) {
         findAdminForContent(content).ifPresent(admin ->
-                create(admin.getUser_id(), type, title, message, content.getContent_id()));
+                create(admin.getUser_id(), type, title, message,
+                        content.getContent_id(), content.getContent_id()));
     }
 
-    public void notifyOppositeParty(Content content, User actor, String message) {
+    public void notifyOppositeParty(Content content, User actor, Long commentId, String message) {
         if ("CLIENT".equalsIgnoreCase(actor.getRole())) {
             findAdminForContent(content).filter(user -> !user.getUser_id().equals(actor.getUser_id()))
                     .ifPresent(user -> create(user.getUser_id(), NotificationType.COMMENT_ADDED,
-                            "תגובה חדשה", message, content.getContent_id()));
+                            "תגובה חדשה", message, content.getContent_id(), commentId));
         } else {
             clientRepository.findById(content.getClientId())
                     .filter(client -> !client.getUser_id().equals(actor.getUser_id()))
                     .ifPresent(client -> create(client.getUser_id(), NotificationType.COMMENT_ADDED,
-                            "תגובה חדשה", message, content.getContent_id()));
+                            "תגובה חדשה", message, content.getContent_id(), commentId));
         }
     }
 
@@ -77,13 +79,15 @@ public class NotificationService {
         return userRepository.findFirstAdmin();
     }
 
-    private Notification create(Long userId, NotificationType type, String title, String message, Long contentId) {
+    private Notification create(Long userId, NotificationType type, String title, String message,
+                                Long contentId, Long entityId) {
         Notification notification = new Notification();
         notification.setUserId(userId);
         notification.setType(type);
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setRelatedContentId(contentId);
+        notification.setEntityId(entityId);
         notification.setRead(false);
         notification.setCreatedAt(LocalDateTime.now());
         return notificationRepository.save(notification);

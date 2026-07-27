@@ -7,5 +7,6 @@ public enum NotificationType {
     CONTENT_REJECTED,
     CONTENT_RESUBMITTED,
     CONTENT_PUBLISHED,
-    COMMENT_ADDED
+    COMMENT_ADDED,
+    NEW_ACTIVITY
 }

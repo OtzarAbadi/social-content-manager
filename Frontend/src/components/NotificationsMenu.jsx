@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import {
   announceNotificationsUpdated,
   getNotifications,
   getUnreadNotificationCount,
+  getNotificationPath,
   markAllNotificationsRead,
   markNotificationRead,
   NOTIFICATIONS_UPDATED_EVENT,
@@ -14,7 +16,8 @@ function formatDate(value) {
   return new Date(value).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-function NotificationsMenu({ onNavigate }) {
+function NotificationsMenu() {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -64,13 +67,20 @@ function NotificationsMenu({ onNavigate }) {
   }, [open, loadNotifications])
 
   async function openNotification(notification) {
-    if (!(notification.read ?? notification.isRead)) {
-      await markNotificationRead(notification.notificationId)
-      setNotifications((items) => items.map((item) => item.notificationId === notification.notificationId ? { ...item, read: true } : item))
-      setUnreadCount((count) => Math.max(0, count - 1))
-      announceNotificationsUpdated()
+    try {
+      if (!(notification.read ?? notification.isRead)) {
+        await markNotificationRead(notification.notificationId)
+        setNotifications((items) => items.map((item) => item.notificationId === notification.notificationId ? { ...item, read: true } : item))
+        setUnreadCount((count) => Math.max(0, count - 1))
+        announceNotificationsUpdated()
+      }
+    } finally {
+      const destination = getNotificationPath(notification)
+      if (destination) {
+        setOpen(false)
+        navigate(destination)
+      }
     }
-    if (notification.relatedContentId) { setOpen(false); onNavigate('content') }
   }
 
   async function markAllRead() {

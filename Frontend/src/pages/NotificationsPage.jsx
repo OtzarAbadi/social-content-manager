@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
 import Toolbar from '../components/Toolbar.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import {
   announceNotificationsUpdated,
   getNotifications,
+  getNotificationPath,
   markAllNotificationsRead,
   markNotificationRead,
   NOTIFICATIONS_UPDATED_EVENT,
@@ -25,6 +27,7 @@ function formatDate(value) {
 }
 
 function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -84,6 +87,19 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
     }
   }
 
+  async function openNotification(notification) {
+    if (!(notification.read ?? notification.isRead)) await markOneRead(notification)
+    const destination = getNotificationPath(notification)
+    if (destination) navigate(destination)
+  }
+
+  function handleNotificationKeyDown(event, notification) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openNotification(notification)
+    }
+  }
+
   return <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
     <section className="notifications-page" dir="rtl" aria-labelledby="notifications-page-title">
       <header className="notifications-page-heading">
@@ -110,7 +126,14 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
       {!loading && notifications.length > 0 && <div className="notifications-page-list">
         {notifications.map((notification) => {
           const unread = !(notification.read ?? notification.isRead)
-          return <article className={`notifications-page-item ${unread ? 'unread' : ''}`} key={notification.notificationId}>
+          return <article
+            className={`notifications-page-item notification-clickable ${unread ? 'unread' : ''}`}
+            key={notification.notificationId}
+            role="link"
+            tabIndex="0"
+            onClick={() => openNotification(notification)}
+            onKeyDown={(event) => handleNotificationKeyDown(event, notification)}
+          >
             <span className="notification-dot" aria-hidden="true" />
             <div className="notifications-page-copy">
               <div className="notifications-page-item-heading">
@@ -123,7 +146,7 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
               {notification.message && <p>{notification.message}</p>}
               <time dateTime={notification.createdAt || undefined}>{formatDate(notification.createdAt)}</time>
             </div>
-            {unread && <button type="button" className="secondary-button small-button" onClick={() => markOneRead(notification)} disabled={updatingId === notification.notificationId}>
+            {unread && <button type="button" className="secondary-button small-button" onClick={(event) => { event.stopPropagation(); markOneRead(notification) }} disabled={updatingId === notification.notificationId}>
               {updatingId === notification.notificationId ? <><span className="button-spinner dark-spinner" />מסמן...</> : 'סימון כנקרא'}
             </button>}
           </article>

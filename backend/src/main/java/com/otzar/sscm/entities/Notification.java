@@ -9,6 +9,7 @@ public class Notification {
     private String title;
     private String message;
     private Long relatedContentId;
+    private Long entityId;
     private boolean read;
     private LocalDateTime createdAt;
 
@@ -24,6 +25,8 @@ public class Notification {
     public void setMessage(String message) { this.message = message; }
     public Long getRelatedContentId() { return relatedContentId; }
     public void setRelatedContentId(Long relatedContentId) { this.relatedContentId = relatedContentId; }
+    public Long getEntityId() { return entityId; }
+    public void setEntityId(Long entityId) { this.entityId = entityId; }
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }
     public LocalDateTime getCreatedAt() { return createdAt; }

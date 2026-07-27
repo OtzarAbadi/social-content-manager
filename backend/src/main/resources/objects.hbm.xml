@@ -94,7 +94,8 @@
         </property>
         <property name="title" column="title" type="string" not-null="true"/>
         <property name="message" column="message" type="text" not-null="true"/>
-        <property name="relatedContentId" column="related_content_id" type="long"/>
+          <property name="relatedContentId" column="related_content_id" type="long"/>
+          <property name="entityId" column="related_entity_id" type="long"/>
         <property name="read" column="is_read" type="boolean" not-null="true"/>
         <property name="createdAt" column="created_at" type="java.time.LocalDateTime" not-null="true"/>
     </class>

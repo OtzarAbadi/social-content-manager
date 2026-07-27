@@ -2107,6 +2107,67 @@ button:disabled,
   line-height: 1.25;
 }
 
+.notification-item,
+.notification-clickable {
+  cursor: pointer;
+}
+
+.notification-item:hover,
+.notification-clickable:hover {
+  border-color: #cdb89e;
+  background: #faf3e9;
+  box-shadow: 0 8px 22px rgba(79,60,45,.08);
+}
+
+.notification-item.unread,
+.notification-clickable.unread {
+  border-color: #d5bd9e;
+  background: #f8ede0;
+}
+
+.notification-clickable:focus-visible {
+  outline: 3px solid rgba(200,167,123,.35);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .notification-clickable {
+    align-items: stretch;
+  }
+
+  .notification-clickable > button {
+    width: 100%;
+  }
+}
+
+.deep-link-highlight {
+  position: relative;
+  z-index: 1;
+  animation: deep-link-pulse 3.5s ease-out both;
+}
+
+@keyframes deep-link-pulse {
+  0%, 18% {
+    border-color: #b78a55;
+    background-color: #fff4df;
+    box-shadow: 0 0 0 5px rgba(200,167,123,.28), 0 16px 38px rgba(79,60,45,.14);
+    transform: translateY(-2px);
+  }
+  100% {
+    border-color: var(--line);
+    box-shadow: var(--shadow-card);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deep-link-highlight {
+    animation: none;
+    outline: 3px solid rgba(183,138,85,.55);
+    outline-offset: 3px;
+  }
+}
+
 /* Subtle motion system */
 .app-content > section,
 .workspace-panel > section,

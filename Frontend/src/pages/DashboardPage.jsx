@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FilePlus2, MessageCircle, Users } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
@@ -95,6 +96,7 @@ function getProfileInitials(profile) {
 const routeByPanel = { contents: 'content', clients: 'clients', comments: 'messages' }
 
 function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
+  const location = useLocation()
   const [profile, setProfile] = useState({
     id: '',
     clientId: '',
@@ -163,6 +165,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [rejectionDialog, setRejectionDialog] = useState({ contentId: null, reason: '' })
   const [rejecting, setRejecting] = useState(false)
   const [historyContent, setHistoryContent] = useState(null)
+  const [highlightedElementId, setHighlightedElementId] = useState('')
 
   const clientById = useMemo(() => {
     return new Map(clients.map((client) => [Number(getClientId(client)), client]))
@@ -328,6 +331,34 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   useEffect(() => {
     if (isClient && activeRoute === 'clients') Promise.resolve().then(() => onNavigate('content'))
   }, [activeRoute, isClient, onNavigate])
+
+  useEffect(() => {
+    const contentMatch = location.pathname.match(/^\/content\/(\d+)\/?$/)
+    if (!contentMatch) return undefined
+
+    const params = new URLSearchParams(location.search)
+    const highlightId = params.get('highlightId')
+    const isCommentsTab = params.get('tab') === 'comments'
+    const targetId = isCommentsTab
+      ? `comment-${highlightId}`
+      : `content-${highlightId || contentMatch[1]}`
+
+    if ((isCommentsTab && loading.comments) || (!isCommentsTab && loading.contents)) return undefined
+    const target = document.getElementById(targetId)
+    if (!target) return undefined
+
+    setHighlightedElementId(targetId)
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = window.setTimeout(() => setHighlightedElementId(''), 3500)
+    return () => window.clearTimeout(timer)
+  }, [
+    comments.length,
+    contents.length,
+    loading.comments,
+    loading.contents,
+    location.pathname,
+    location.search,
+  ])
 
   function showNotice(message) {
     setNotice(message)
@@ -1262,7 +1293,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                       : null
 
                     return (
-                      <article className="entity-card content-card" key={contentId}>
+                      <article id={`content-${contentId}`} className={`entity-card content-card ${highlightedElementId === `content-${contentId}` ? 'deep-link-highlight' : ''}`} key={contentId}>
                         <div className={`status-rail status-${content.status || 'DRAFT'}`} />
                         <div className="entity-details">
                           <div className="entity-title-row">
@@ -1650,7 +1681,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
               {!resultsHidden.comments && (
                 <div className="comment-list">
                   {comments.map((comment) => (
-                    <article className="comment-item" key={comment.commentId}>
+                    <article id={`comment-${comment.commentId}`} className={`comment-item ${highlightedElementId === `comment-${comment.commentId}` ? 'deep-link-highlight' : ''}`} key={comment.commentId}>
                       <div>
                         <h3>תגובה #{comment.commentId}</h3>
                         <p>{comment.commentText}</p>
