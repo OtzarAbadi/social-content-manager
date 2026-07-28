@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ExternalLink, ImageOff, RefreshCw } from 'lucide-react'
+import { ExternalLink, HelpCircle, ImageOff, RefreshCw } from 'lucide-react'
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import PageShell from '../components/PageShell.jsx'
 import {
+  formatAnalyticsChartDate as formatChartDate,
+  showAnalyticsValue as show,
+  unavailableAnalyticsValue as unavailable,
+} from '../utils/analyticsFormat.js'
+import {
   getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
 } from '../api/analytics.js'
 
-const unavailable = 'לא זמין'
 const ranges = {
   7: '7 הימים האחרונים',
   30: '30 הימים האחרונים',
@@ -32,12 +36,6 @@ function dateParams(range, custom) {
   return { since: range === 'custom' && custom.since ? custom.since : sinceDate.toISOString().slice(0, 10), until }
 }
 
-function show(value, percent = false) {
-  if (value === null || value === undefined) return unavailable
-  return percent ? `${Number(value).toLocaleString('he-IL', { maximumFractionDigits: 2 })}%`
-    : Number(value).toLocaleString('he-IL')
-}
-
 function friendlyError(error) {
   const code = error?.response?.data?.code
   if (code === 'MISSING_PERMISSION') return { kind: code, text: 'חסרה הרשאת instagram_manage_insights. יש לחדש את אסימון Meta לאחר הוספת ההרשאה.' }
@@ -51,8 +49,8 @@ function Preview({ item }) {
   const [failed, setFailed] = useState(false)
   const source = item.thumbnailUrl || item.mediaUrl
   return source && !failed
-    ? <img className="instagram-media-thumb" src={source} alt="" onError={() => setFailed(true)} />
-    : <span className="instagram-media-fallback"><ImageOff size={20} /></span>
+    ? <img className="instagram-media-thumb" src={source} alt={`תצוגה מקדימה: ${item.caption || 'תוכן Instagram'}`} loading="lazy" onError={() => setFailed(true)} />
+    : <span className="instagram-media-fallback" role="img" aria-label="תצוגה מקדימה אינה זמינה"><ImageOff size={20} aria-hidden="true" /></span>
 }
 
 function TrendChart({ data, dataKey, title, color }) {
@@ -63,8 +61,13 @@ function TrendChart({ data, dataKey, title, color }) {
       <div className="instagram-chart"><ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8ded2" />
-          <XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis width={42} tick={{ fontSize: 11 }} />
-          <Tooltip /><Legend /><Line type="monotone" dataKey={dataKey} name={title} stroke={color} strokeWidth={2.5} connectNulls={false} />
+          <XAxis dataKey="date" tickFormatter={(value) => formatChartDate(value)} tick={{ fontSize: 11 }} />
+          <YAxis width={42} tick={{ fontSize: 11 }} />
+          <Tooltip
+            labelFormatter={(value) => formatChartDate(value, true)}
+            formatter={(value) => [show(value), title]}
+          />
+          <Legend /><Line type="monotone" dataKey={dataKey} name={title} stroke={color} strokeWidth={2.5} connectNulls={false} />
         </LineChart>
       </ResponsiveContainer></div>}
   </section>
@@ -129,7 +132,10 @@ function AnalyticsPage(props) {
       {!loading && !error && isAdmin && !account && <div className="analytics-state">אין נתוני חשבון זמינים.</div>}
       {!loading && !error && account && <>
         <section className="analytics-summary instagram-summary" aria-label="מדדי סיכום">
-          {metricCards.map(([key,label]) => <article key={key}><span>{label}</span><strong>{show(account[key], key === 'engagementRate')}</strong></article>)}
+          {metricCards.map(([key,label]) => <article key={key}>
+            <span>{label}{key === 'engagementRate' && <span className="metric-help" title="סך האינטראקציות חלקי החשיפה, כפול 100" aria-label="שיעור מעורבות: סך האינטראקציות חלקי החשיפה, כפול 100"><HelpCircle size={15} aria-hidden="true" /></span>}</span>
+            <strong>{show(account[key], key === 'engagementRate')}</strong>
+          </article>)}
         </section>
         <div className="analytics-grid instagram-charts-grid">
           <TrendChart data={trend} dataKey="reach" title="חשיפה לאורך זמן" color="#8f6d4f" />

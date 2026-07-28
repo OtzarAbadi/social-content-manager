@@ -2453,3 +2453,191 @@ button:active:not(:disabled),
 @media (max-width: 780px) {
   .integration-grid { grid-template-columns: 1fr; }
 }
+
+/* Final-project presentation polish */
+.app-content {
+  width: 100%;
+  max-width: 1560px;
+  margin-inline: auto;
+  overflow-x: clip;
+}
+
+.app-content > section,
+.analytics-page,
+.notifications-page,
+.activity-page,
+.integrations-page {
+  min-width: 0;
+}
+
+.analytics-heading,
+.notifications-page-heading,
+.calendar-heading,
+.management-header,
+.overview-heading {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.analytics-heading h2,
+.notifications-page-heading h2,
+.calendar-heading h2,
+.management-header h2,
+.overview-heading h2 {
+  line-height: 1.2;
+}
+
+.metric-help {
+  display: inline-flex;
+  margin-inline-start: 6px;
+  vertical-align: middle;
+  color: var(--text-soft);
+  cursor: help;
+}
+
+.analytics-table-wrap {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.analytics-table {
+  min-width: 1120px;
+}
+
+.analytics-table th,
+.analytics-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.instagram-caption {
+  width: min(320px, 30vw);
+  max-width: 320px;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.instagram-media-table time,
+.instagram-technical-details span,
+.event-details dd,
+input[type="date"],
+input[type="datetime-local"],
+[dir="ltr"] {
+  unicode-bidi: isolate;
+}
+
+.instagram-top-card {
+  min-width: 0;
+}
+
+.instagram-top-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.entity-form label,
+.instagram-filters label {
+  min-width: 0;
+}
+
+.entity-form input,
+.entity-form select,
+.entity-form textarea,
+.instagram-filters input,
+.instagram-filters select {
+  width: 100%;
+  max-width: 100%;
+}
+
+.modal-card,
+.calendar-modal {
+  overscroll-behavior: contain;
+}
+
+.status-badge-ui {
+  border: 1px solid currentColor;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .app-content {
+    padding-inline: 12px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .analytics-heading,
+  .notifications-page-heading,
+  .calendar-heading,
+  .management-header,
+  .overview-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analytics-refresh,
+  .notifications-page-heading .toolbar {
+    width: 100%;
+  }
+
+  .instagram-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .instagram-charts-grid,
+  .instagram-top-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .instagram-chart {
+    min-height: 240px;
+  }
+
+  .analytics-table-wrap::before {
+    display: block;
+    position: sticky;
+    right: 0;
+    padding: 8px 12px;
+    content: 'אפשר לגלול את הטבלה לצדדים';
+    color: var(--text-soft);
+    background: #f7f0e7;
+    font-size: .78rem;
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .modal-card,
+  .calendar-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 20px 20px 14px 14px;
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: -24px;
+    z-index: 2;
+  }
+
+  .mobile-nav {
+    max-width: 100vw;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+
+  .mobile-nav::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -65,6 +65,14 @@ describe('InstagramPublishAction', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('closes an idle confirmation dialog with Escape', () => {
+    renderAction()
+    fireEvent.click(screen.getByRole('button', { name: 'פרסום באינסטגרם' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('reports success and exposes the media ID only under technical details', async () => {
     publishContentToInstagram.mockResolvedValue({ success: true, instagramMediaId: 'media-456' })
     const { props, rerender } = renderAction()

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Send, X } from 'lucide-react'
 import { getMediaType } from '../utils/imageUrl.js'
 import {
@@ -16,6 +16,15 @@ function InstagramPublishAction({ content, role, publishedMediaId, onPublished }
     && content.status === 'APPROVED'
     && Boolean(content.file_url)
     && getMediaType(content.file_url, content.content_type) === 'image'
+
+  useEffect(() => {
+    if (!confirming || publishing) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setConfirming(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [confirming, publishing])
 
   if (!isEligible) return null
 
@@ -57,8 +66,8 @@ function InstagramPublishAction({ content, role, publishedMediaId, onPublished }
       )}
 
       {confirming && !publishedMediaId && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal-card instagram-confirmation" role="dialog" aria-modal="true" aria-labelledby={`instagram-confirm-title-${contentId}`}>
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => !publishing && setConfirming(false)}>
+          <section className="modal-card instagram-confirmation" role="dialog" aria-modal="true" aria-labelledby={`instagram-confirm-title-${contentId}`} onMouseDown={(event) => event.stopPropagation()}>
             <button className="modal-close" type="button" onClick={() => setConfirming(false)} disabled={publishing} aria-label="סגירת חלון האישור"><X size={20} /></button>
             <h2 id={`instagram-confirm-title-${contentId}`}>פרסום אמיתי באינסטגרם</h2>
             <p>הפעולה תפרסם פוסט אמיתי בחשבון האינסטגרם המחובר. לא ניתן לבטל את הפרסום מתוך המערכת.</p>

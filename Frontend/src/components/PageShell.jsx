@@ -39,7 +39,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         setProfile((await api.get('/users/me')).data)
       } catch {
         setProfile(null)
-        setProfileError('Unable to load your profile. Check the backend connection and try again.')
+        setProfileError('לא הצלחנו לטעון את פרטי המשתמש. אפשר להמשיך לעבוד ולנסות לרענן מאוחר יותר.')
       }
     })
   }, [isAuthenticated])

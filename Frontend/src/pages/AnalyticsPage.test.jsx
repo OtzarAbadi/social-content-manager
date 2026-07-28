@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import AnalyticsPage from './AnalyticsPage.jsx'
 import {
+  formatAnalyticsChartDate as formatChartDate,
+  showAnalyticsValue as show,
+} from '../utils/analyticsFormat.js'
+import {
   getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
 } from '../api/analytics.js'
 
@@ -37,6 +41,18 @@ describe('AnalyticsPage', () => {
   })
   afterEach(() => { cleanup(); vi.clearAllMocks() })
   const renderPage = () => render(<AnalyticsPage isAuthenticated routes={{}} />)
+
+  it('formats chart dates for Hebrew readers without raw ISO timestamps', () => {
+    expect(formatChartDate('2026-07-22')).toBe('22.07')
+    expect(formatChartDate('2026-07-22', true)).toContain('22')
+    expect(formatChartDate('2026-07-22', true)).not.toContain('2026-07-22')
+  })
+
+  it('distinguishes unavailable values from an explicit zero', () => {
+    expect(show(null)).toBe('לא זמין')
+    expect(show(0)).toBe('0')
+    expect(show(0, true)).toBe('0%')
+  })
 
   it('loads real response values and Hebrew cards', async () => {
     renderPage()
