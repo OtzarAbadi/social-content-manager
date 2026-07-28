@@ -6,6 +6,7 @@ public class UpdateClientRequest {
 
     private Long userId;
     private Long adminId;
+    private Boolean clearAdminAssignment;
     @Pattern(regexp = ".*\\S.*", message = "Business name must not be blank")
     private String businessName;
     private String phone;
@@ -15,6 +16,8 @@ public class UpdateClientRequest {
 
     public Long getAdminId() { return adminId; }
     public void setAdminId(Long adminId) { this.adminId = adminId; }
+    public Boolean getClearAdminAssignment() { return clearAdminAssignment; }
+    public void setClearAdminAssignment(Boolean clearAdminAssignment) { this.clearAdminAssignment = clearAdminAssignment; }
 
     public String getBusinessName() { return businessName; }
     public void setBusinessName(String businessName) { this.businessName = businessName; }

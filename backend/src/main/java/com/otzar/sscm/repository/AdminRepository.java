@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 @Transactional
@@ -13,4 +14,5 @@ public class AdminRepository {
     private final Persist persist;
     public AdminRepository(Persist persist) { this.persist = persist; }
     public Optional<Admin> findById(Long id) { return Optional.ofNullable(persist.loadObject(Admin.class, id)); }
+    public List<Admin> findAll() { return persist.loadList(Admin.class); }
 }

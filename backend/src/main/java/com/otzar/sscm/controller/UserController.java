@@ -4,6 +4,7 @@ import com.otzar.sscm.entities.User;
 import com.otzar.sscm.models.BasicResponse;
 import com.otzar.sscm.models.LoginRequest;
 import com.otzar.sscm.models.UserMeResponse;
+import com.otzar.sscm.models.SocialManagerResponse;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,15 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(userService.findAll());
+    }
+
+    @GetMapping("/social-managers")
+    public ResponseEntity<List<SocialManagerResponse>> getSocialManagers(
+            @CookieValue(value = "token", required = false) String token) {
+        User currentUser = userService.findByToken(token);
+        if (currentUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(userService.findSocialManagers());
     }
 
     @PostMapping("/login")

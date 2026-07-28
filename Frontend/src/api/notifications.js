@@ -4,16 +4,9 @@ export const NOTIFICATIONS_UPDATED_EVENT = 'notifications:updated'
 
 export function getNotificationPath(notification) {
   const contentId = notification.relatedContentId ?? notification.contentId
-  const entityId = notification.entityId || notification.relatedContentId
   if (notification.type === 'NEW_ACTIVITY') return '/activity'
   if (!contentId) return null
-  if (notification.type === 'COMMENT_ADDED') {
-    return `/content/${contentId}?tab=comments&highlightId=${entityId}`
-  }
-  if (notification.type === 'CONTENT_APPROVED' || notification.type === 'CONTENT_REJECTED') {
-    return `/content/${contentId}?highlightId=${entityId}`
-  }
-  return null
+  return `/content/${contentId}?highlightId=${contentId}`
 }
 
 export async function getNotifications() {

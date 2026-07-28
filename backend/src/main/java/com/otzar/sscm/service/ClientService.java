@@ -72,7 +72,9 @@ public class ClientService {
             client.setUser_id(request.getUserId());
         }
 
-        if (request.getAdminId() != null) {
+        if (Boolean.TRUE.equals(request.getClearAdminAssignment())) {
+            client.setAdmin_id(null);
+        } else if (request.getAdminId() != null) {
             client.setAdmin_id(request.getAdminId());
         }
 

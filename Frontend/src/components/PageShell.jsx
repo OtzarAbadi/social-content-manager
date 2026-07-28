@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Activity, BarChart3, Bell, CalendarDays, FileText, LayoutDashboard,
   LogOut, MessageCircle, Plug, Users,
@@ -30,6 +30,7 @@ function initials(profile) {
 function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout, children }) {
   const [profile, setProfile] = useState(null)
   const [profileError, setProfileError] = useState('')
+  const mobileNavRef = useRef(null)
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -43,6 +44,12 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
       }
     })
   }, [isAuthenticated])
+
+  useEffect(() => {
+    const activeItem = mobileNavRef.current?.querySelector(`[data-route="${activeRoute}"]`)
+    if (!activeItem?.scrollIntoView) return
+    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeRoute, profile?.role])
 
   function navigate(event, routeKey) {
     event.preventDefault()
@@ -89,14 +96,16 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         <main className="app-content">{children}</main>
       </div>
 
-      <nav className="mobile-nav" aria-label="ניווט לנייד">
-        <a className={activeRoute === 'dashboard' ? 'active' : ''} href={routes.dashboard.path} onClick={(e) => navigate(e, 'dashboard')}><i>{icons.dashboard}</i><span>בית</span></a>
-        <a className={activeRoute === 'calendar' ? 'active' : ''} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
-        <a className={activeRoute === 'content' ? 'active' : ''} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
-        <a className={activeRoute === 'messages' ? 'active' : ''} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
-        {canViewAnalytics && <a className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
-        {canViewNotifications && <a className={activeRoute === 'notifications' ? 'active' : ''} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
-        {canViewActivity && <a className={activeRoute === 'activity' ? 'active' : ''} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>פעילות</span></a>}
+      <nav className="mobile-nav" aria-label="ניווט לנייד" ref={mobileNavRef} data-scrollable="horizontal">
+        <a data-route="dashboard" className={activeRoute === 'dashboard' ? 'active' : ''} href={routes.dashboard.path} onClick={(e) => navigate(e, 'dashboard')}><i>{icons.dashboard}</i><span>בית</span></a>
+        <a data-route="calendar" className={activeRoute === 'calendar' ? 'active' : ''} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
+        <a data-route="content" className={activeRoute === 'content' ? 'active' : ''} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
+        {isAdmin && <a data-route="clients" className={activeRoute === 'clients' ? 'active' : ''} href={routes.clients.path} onClick={(e) => navigate(e, 'clients')}><i>{icons.clients}</i><span>לקוחות</span></a>}
+        <a data-route="messages" className={activeRoute === 'messages' ? 'active' : ''} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
+        {canViewAnalytics && <a data-route="analytics" className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
+        {canViewNotifications && <a data-route="notifications" className={activeRoute === 'notifications' ? 'active' : ''} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
+        {canViewActivity && <a data-route="activity" className={activeRoute === 'activity' ? 'active' : ''} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>פעילות</span></a>}
+        {isAdmin && <a data-route="integrations" className={activeRoute === 'integrations' ? 'active' : ''} href={routes.integrations.path} onClick={(e) => navigate(e, 'integrations')}><i>{icons.integrations}</i><span>אינטגרציות</span></a>}
         <button type="button" onClick={onLogout}><i>{icons.logout}</i><span>יציאה</span></button>
       </nav>
     </div>

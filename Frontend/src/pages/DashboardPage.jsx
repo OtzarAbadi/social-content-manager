@@ -12,6 +12,7 @@ import MediaPreview from '../components/MediaPreview.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import InstagramPublishAction from '../components/InstagramPublishAction.jsx'
+import CreationModal from '../components/CreationModal.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 
 const statusOptions = [
@@ -109,6 +110,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
 
   const [clients, setClients] = useState([])
+  const [users, setUsers] = useState([])
+  const [socialManagers, setSocialManagers] = useState([])
   const [contents, setContents] = useState([])
   const [comments, setComments] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
@@ -123,7 +126,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     contents: false,
   })
 
-  const [clientLookupId, setClientLookupId] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
   const [contentFilter, setContentFilter] = useState({
     contentId: '',
     clientId: '',
@@ -175,6 +178,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const clientById = useMemo(() => {
     return new Map(clients.map((client) => [Number(getClientId(client)), client]))
   }, [clients])
+  const userById = useMemo(() => new Map(users.map((user) => [Number(user.user_id), user])), [users])
+  const managerByAdminId = useMemo(() => new Map(socialManagers.map((manager) => [Number(manager.adminId), manager])), [socialManagers])
+  const visibleClients = useMemo(() => {
+    const query = clientSearch.trim().toLocaleLowerCase('he-IL')
+    if (!query) return clients
+    return clients.filter((client) => {
+      const customer = userById.get(Number(client.user_id))
+      const clientContent = contents.filter((content) => Number(content.clientId ?? content.client_id) === Number(getClientId(client)))
+      return [
+        client.business_name,
+        client.phone,
+        customer?.full_name,
+        customer?.username,
+        ...clientContent.flatMap((content) => [content.title, content.description]),
+      ].some((value) => String(value || '').toLocaleLowerCase('he-IL').includes(query))
+    })
+  }, [clientSearch, clients, contents, userById])
 
   const waitingApprovalCount = useMemo(() => {
     return contents.filter((content) => content.status === 'WAITING_APPROVAL').length
@@ -252,6 +272,20 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     }
   }, [resetResultView])
 
+  const loadUsers = useCallback(async () => {
+    try {
+      const [usersResponse, managersResponse] = await Promise.all([
+        api.get('/users'),
+        api.get('/users/social-managers'),
+      ])
+      setUsers(usersResponse.data)
+      setSocialManagers(managersResponse.data)
+    } catch {
+      setUsers([])
+      setSocialManagers([])
+    }
+  }, [])
+
   const loadContents = useCallback(async () => {
     await Promise.resolve()
     resetResultView('contents')
@@ -304,6 +338,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
       loadProfile()
       loadClients()
+      loadUsers()
       loadContents()
       loadComments()
     })
@@ -311,7 +346,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     return () => {
       isMounted = false
     }
-  }, [loadClients, loadComments, loadContents, loadProfile])
+  }, [loadClients, loadComments, loadContents, loadProfile, loadUsers])
 
   useEffect(() => {
     if (activeRoute !== 'dashboard') return
@@ -349,13 +384,37 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       : `content-${highlightId || contentMatch[1]}`
 
     if ((isCommentsTab && loading.comments) || (!isCommentsTab && loading.contents)) return undefined
-    const target = document.getElementById(targetId)
-    if (!target) return undefined
+    let frameId
+    let highlightTimer
+    let attempts = 0
+    let cancelled = false
 
-    setHighlightedElementId(targetId)
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    const timer = window.setTimeout(() => setHighlightedElementId(''), 3500)
-    return () => window.clearTimeout(timer)
+    const highlightWhenReady = () => {
+      if (cancelled) return
+      const target = document.getElementById(targetId)
+      if (!target && attempts < 120) {
+        attempts += 1
+        frameId = window.requestAnimationFrame(highlightWhenReady)
+        return
+      }
+      if (!target) return
+
+      setHighlightedElementId(targetId)
+      frameId = window.requestAnimationFrame(() => {
+        if (cancelled) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        highlightTimer = window.setTimeout(() => {
+          setHighlightedElementId((current) => current === targetId ? '' : current)
+        }, 4500)
+      })
+    }
+
+    frameId = window.requestAnimationFrame(highlightWhenReady)
+    return () => {
+      cancelled = true
+      if (frameId) window.cancelAnimationFrame(frameId)
+      if (highlightTimer) window.clearTimeout(highlightTimer)
+    }
   }, [
     comments.length,
     contents.length,
@@ -379,7 +438,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     setClientForm((current) => ({
       ...current,
-      [name]: name === 'adminId' ? Number(value) : value,
+      [name]: name === 'adminId' && value !== '' ? Number(value) : value,
     }))
   }
 
@@ -401,31 +460,6 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       }))
     } finally {
       setSaving((current) => ({ ...current, client: false }))
-    }
-  }
-
-  async function handleFindClientById() {
-    if (!clientLookupId) {
-      return
-    }
-
-    setLoading((current) => ({ ...current, clients: true }))
-    setErrors((current) => ({ ...current, clients: '' }))
-
-    try {
-      const response = await api.get(`/clients/${clientLookupId}`)
-      setClients([response.data])
-      showFilteredResults('clients')
-      showNotice(`נטען לקוח #${clientLookupId}`)
-    } catch {
-      setClients([])
-      showFilteredResults('clients')
-      setErrors((current) => ({
-        ...current,
-        clients: 'לא נמצא לקוח עם המזהה הזה',
-      }))
-    } finally {
-      setLoading((current) => ({ ...current, clients: false }))
     }
   }
 
@@ -460,6 +494,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     if (clientDraft.adminId !== '') {
       payload.adminId = Number(clientDraft.adminId)
+    } else {
+      payload.clearAdminAssignment = true
     }
 
     setErrors((current) => ({ ...current, clients: '' }))
@@ -958,25 +994,26 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                   <p className="eyebrow">לקוחות</p>
                   <h2 id="clients-title">ניהול לקוחות</h2>
                 </div>
-                <button type="button" className="secondary-button" onClick={loadClients}>
-                  כל הלקוחות
-                </button>
+                <div className="management-header-actions">
+                  <button type="button" className="secondary-button" onClick={loadClients}>כל הלקוחות</button>
+                  <button type="button" className="primary-button" onClick={() => toggleCreateForm('clients')}>
+                    {showCreateForm.clients ? 'סגירת יצירת לקוח' : 'יצירת לקוח חדש'}
+                  </button>
+                </div>
               </div>
 
-              <div className="tool-row filter-grid">
-                <div className="filter-control">
+              <div className="tool-row client-smart-search">
+                <div className="filter-control compact-search">
                   <label>
-                    מזהה לקוח
+                    חיפוש לקוחות
                     <input
-                      min="1"
-                      type="number"
-                      value={clientLookupId}
-                      onChange={(event) => setClientLookupId(event.target.value)}
+                      type="search"
+                      value={clientSearch}
+                      onChange={(event) => setClientSearch(event.target.value)}
+                      placeholder="שם עסק, טלפון, שם לקוח או תוכן"
                     />
                   </label>
-                  <button type="button" className="secondary-button" onClick={handleFindClientById}>
-                    חיפוש לפי מזהה לקוח
-                  </button>
+                  {clientSearch && <button type="button" className="ghost-button" onClick={() => setClientSearch('')}>ניקוי</button>}
                 </div>
               </div>
 
@@ -996,7 +1033,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {!resultsHidden.clients && (
                 <div className="entity-list">
-                  {clients.map((client) => {
+                  {visibleClients.map((client) => {
                     const clientId = getClientId(client)
                     const isEditing = editingClientId === clientId
 
@@ -1040,20 +1077,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                 />
                               </label>
                               <label>
-                                Admin ID
-                                <input
-                                  min="1"
+                                מנהל סושיאל
+                                <select
                                   name="adminId"
-                                  type="number"
                                   value={clientDraft.adminId}
                                   onChange={handleClientDraftChange}
-                                />
+                                >
+                                  <option value="">ללא מנהל משויך</option>
+                                  {socialManagers.map((manager) => <option key={manager.adminId} value={manager.adminId}>{manager.fullName || manager.username}</option>)}
+                                </select>
                               </label>
                             </div>
                           ) : (
                             <div className="metadata-row">
                               <span>User ID: {client.user_id ?? '-'}</span>
-                              <span>Admin ID: {client.admin_id ?? '-'}</span>
+                              <span>מנהל סושיאל: {client.admin_id ? (managerByAdminId.get(Number(client.admin_id))?.fullName || managerByAdminId.get(Number(client.admin_id))?.username || `#${client.admin_id}`) : 'לא משויך'}</span>
                               <span className="phone-number">טלפון: {client.phone || '-'}</span>
                             </div>
                           )}
@@ -1112,15 +1150,30 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 </div>
               )}
 
-              <div className="create-toggle-bar">
-                <button type="button" className="primary-button" onClick={() => toggleCreateForm('clients')}>
-                  {showCreateForm.clients ? 'סגירת יצירת לקוח' : 'יצירת לקוח חדש'}
-                </button>
-              </div>
+              {socialManagers.length > 0 && (
+                <section className="manager-client-summary" aria-labelledby="manager-client-summary-title">
+                  <h3 id="manager-client-summary-title">לקוחות לפי מנהל סושיאל</h3>
+                  <div className="manager-client-grid">
+                    {socialManagers.map((manager) => {
+                      const managed = clients.filter((client) => Number(client.admin_id) === Number(manager.adminId))
+                      return <article key={manager.adminId}>
+                        <strong>{manager.fullName || manager.username}</strong>
+                        <span>{managed.length} לקוחות</span>
+                        <p>{managed.length ? managed.map((client) => client.business_name).join(' · ') : 'אין לקוחות משויכים'}</p>
+                      </article>
+                    })}
+                  </div>
+                </section>
+              )}
 
-              {showCreateForm.clients && (
+              <CreationModal
+                open={showCreateForm.clients}
+                titleId="create-client-dialog-title"
+                closeLabel="סגירת יצירת לקוח"
+                onClose={() => setShowCreateForm((current) => ({ ...current, clients: false }))}
+              >
                 <form className="entity-form" onSubmit={handleCreateClient}>
-                  <h3>יצירת לקוח</h3>
+                  <h3 id="create-client-dialog-title">יצירת לקוח</h3>
                   <div className="form-grid">
                     <label>
                       שם העסק
@@ -1177,21 +1230,22 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                       />
                     </label>
                     <label>
-                      מזהה מנהל
-                      <input
-                        min="1"
+                      מנהל סושיאל
+                      <select
                         name="adminId"
-                        type="number"
                         value={clientForm.adminId}
                         onChange={handleClientFormChange}
-                      />
+                      >
+                        <option value="">ללא מנהל משויך</option>
+                        {socialManagers.map((manager) => <option key={manager.adminId} value={manager.adminId}>{manager.fullName || manager.username}</option>)}
+                      </select>
                     </label>
                   </div>
                   <button className="primary-button" type="submit" disabled={saving.client}>
                     {saving.client ? <><span className="button-spinner" />שומר...</> : 'שמירת לקוח'}
                   </button>
                 </form>
-              )}
+              </CreationModal>
             </section>
           )}
 
@@ -1202,9 +1256,12 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                   <p className="eyebrow">תכנים</p>
                   <h2 id="contents-title">ניהול תכנים</h2>
                 </div>
-                <button type="button" className="secondary-button" onClick={loadContents}>
-                  כל התכנים
-                </button>
+                <div className="management-header-actions">
+                  <button type="button" className="secondary-button" onClick={loadContents}>כל התכנים</button>
+                  {isAdmin && <button type="button" className="primary-button" onClick={() => toggleCreateForm('contents')}>
+                    {showCreateForm.contents ? 'סגירת יצירת תוכן' : 'יצירת תוכן חדש'}
+                  </button>}
+                </div>
               </div>
 
               <div className="tool-row tool-row-wide filter-grid">
@@ -1502,16 +1559,14 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
               )}
 
               {isAdmin && (
-                <>
-                  <div className="create-toggle-bar">
-                    <button type="button" className="primary-button" onClick={() => toggleCreateForm('contents')}>
-                      {showCreateForm.contents ? 'סגירת יצירת תוכן' : 'יצירת תוכן חדש'}
-                    </button>
-                  </div>
-
-                  {showCreateForm.contents && (
+                <CreationModal
+                  open={showCreateForm.contents}
+                  titleId="create-content-dialog-title"
+                  closeLabel="סגירת יצירת תוכן"
+                  onClose={() => setShowCreateForm((current) => ({ ...current, contents: false }))}
+                >
                     <form className="entity-form" onSubmit={handleCreateContent}>
-                      <h3>יצירת תוכן</h3>
+                      <h3 id="create-content-dialog-title">יצירת תוכן</h3>
                       <div className="form-grid">
                         <label>
                           לקוח
@@ -1602,8 +1657,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         {saving.content ? <><span className="button-spinner" />שומר...</> : 'שמירת תוכן'}
                       </button>
                     </form>
-                  )}
-                </>
+                </CreationModal>
               )}
             </section>
           )}

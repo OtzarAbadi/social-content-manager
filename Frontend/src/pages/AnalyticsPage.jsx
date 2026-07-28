@@ -80,6 +80,12 @@ function TopCard({ title, item }) {
   </article>
 }
 
+function topItem(items, key) {
+  return items
+    .filter((item) => typeof item[key] === 'number')
+    .reduce((best, item) => (!best || item[key] > best[key] ? item : best), null)
+}
+
 function AnalyticsPage(props) {
   const [profile, setProfile] = useState(null)
   const [account, setAccount] = useState(null)
@@ -112,6 +118,13 @@ function AnalyticsPage(props) {
   const isAdmin = profile?.role === 'ADMIN'
   const trend = account?.dailyTrend || []
   const items = media?.items || []
+  const availableMetricCards = metricCards.filter(([key]) => account?.[key] !== null && account?.[key] !== undefined)
+  const unavailableMetricLabels = metricCards
+    .filter(([key]) => account?.[key] === null || account?.[key] === undefined)
+    .map(([, label]) => label)
+  const topReach = media?.topByReach || topItem(items, 'reach')
+  const topViews = media?.topByViews || topItem(items, 'views')
+  const topEngagement = media?.topByEngagement || topItem(items, 'engagementRate')
 
   return <PageShell {...props}>
     <section className="analytics-page instagram-analytics" dir="rtl">
@@ -132,11 +145,14 @@ function AnalyticsPage(props) {
       {!loading && !error && isAdmin && !account && <div className="analytics-state">אין נתוני חשבון זמינים.</div>}
       {!loading && !error && account && <>
         <section className="analytics-summary instagram-summary" aria-label="מדדי סיכום">
-          {metricCards.map(([key,label]) => <article key={key}>
+          {availableMetricCards.map(([key,label]) => <article key={key}>
             <span>{label}{key === 'engagementRate' && <span className="metric-help" title="סך האינטראקציות חלקי החשיפה, כפול 100" aria-label="שיעור מעורבות: סך האינטראקציות חלקי החשיפה, כפול 100"><HelpCircle size={15} aria-hidden="true" /></span>}</span>
             <strong>{show(account[key], key === 'engagementRate')}</strong>
           </article>)}
         </section>
+        {unavailableMetricLabels.length > 0 && <p className="analytics-availability-note">
+          Meta לא החזירה כרגע את המדדים: {unavailableMetricLabels.join(', ')}. הזמינות תלויה בסוג החשבון, בהרשאות ובטווח התאריכים.
+        </p>}
         <div className="analytics-grid instagram-charts-grid">
           <TrendChart data={trend} dataKey="reach" title="חשיפה לאורך זמן" color="#8f6d4f" />
           <TrendChart data={trend} dataKey="views" title="צפיות לאורך זמן" color="#b27468" />
@@ -144,9 +160,9 @@ function AnalyticsPage(props) {
           <TrendChart data={trend} dataKey="netFollowerChange" title="שינוי בעוקבים לאורך זמן" color="#80669d" />
         </div>
         <section className="instagram-top-grid">
-          <TopCard title="התוכן עם החשיפה הגבוהה ביותר" item={media?.topByReach} />
-          <TopCard title="התוכן עם מספר הצפיות הגבוה ביותר" item={media?.topByViews} />
-          <TopCard title="התוכן עם שיעור המעורבות הגבוה ביותר" item={media?.topByEngagement} />
+          <TopCard title="התוכן עם החשיפה הגבוהה ביותר" item={topReach} />
+          <TopCard title="התוכן עם מספר הצפיות הגבוה ביותר" item={topViews} />
+          <TopCard title="התוכן עם שיעור המעורבות הגבוה ביותר" item={topEngagement} />
         </section>
         <section className="analytics-panel instagram-media-panel">
           <div className="analytics-panel-title"><h3>ביצועי תוכן</h3></div>
