@@ -48,6 +48,21 @@ The Meta app/token must include `instagram_manage_insights`. After adding this p
 regenerate the token; an older token does not gain the permission automatically. Graph API
 Explorer tokens are commonly short-lived and may expire. Never commit or expose a token.
 
+### Meta token types and current limitation
+
+- A **Graph API Explorer user token** is a temporary developer token representing the selected
+  Meta user. It is commonly short-lived and is not a stable runtime credential.
+- A **Page Access Token** represents a Facebook Page and is the credential this backend currently
+  expects in `META_PAGE_ACCESS_TOKEN` for Instagram publishing and Insights.
+- A **long-lived token** has an extended lifetime after Meta's supported exchange flow, but it is
+  not permanent and can still expire or be invalidated.
+- **Future OAuth tokens** will be issued per connected user/account, stored server-side, and
+  managed with account ownership and expiry metadata.
+
+The current Page Access Token is not refreshed or exchanged automatically. Replace it when Meta
+expires or invalidates it. This change prepares the backend configuration boundary for OAuth, but
+adds no OAuth flow, token persistence, database change, or migration.
+
 Account metrics are requested independently: reach, views, profile views, accounts engaged,
 total interactions, and follows/unfollows. Media metrics are also isolated so an unsupported
 metric does not fail the page. Images, videos, Reels, and carousels request reach, views,
@@ -68,28 +83,33 @@ Do not store real credentials in source control. Seed and newly created user pas
 
 ## Run locally
 
-The frontend currently calls the backend on port `8081`:
+Copy the committed examples to ignored local files:
 
 ```powershell
-$env:CLOUDINARY_CLOUD_NAME='your-cloud-name'
-$env:CLOUDINARY_API_KEY='your-api-key'
-$env:CLOUDINARY_API_SECRET='your-api-secret'
-$env:META_INSTAGRAM_USER_ID='your-instagram-user-id'
-$env:META_PAGE_ACCESS_TOKEN='your-page-access-token'
-$env:META_GRAPH_API_BASE_URL='https://graph.facebook.com/v25.0'
-$env:SERVER_PORT=8081
-.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=production
+cd backend
+Copy-Item .env.example .env
+Copy-Item run-backend.example.ps1 run-backend.ps1
 ```
 
-For local-only uploads without Cloudinary, remove the Cloudinary variables from the current
-PowerShell session before starting:
+Fill in `backend/.env`, then run:
 
 ```powershell
-Remove-Item Env:CLOUDINARY_CLOUD_NAME -ErrorAction SilentlyContinue
-Remove-Item Env:CLOUDINARY_API_KEY -ErrorAction SilentlyContinue
-Remove-Item Env:CLOUDINARY_API_SECRET -ErrorAction SilentlyContinue
-.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=production
+.\run-backend.ps1
 ```
+
+The backend loads `.env` only from the filesystem; it is not packaged into the jar. Operating
+system and deployment environment variables override matching `.env` entries, and a missing
+`.env` is allowed. Leave all three Cloudinary values empty to retain local image storage.
+Startup diagnostics report only yes/no configuration presence.
+
+To run without the copied helper, quote both Maven arguments in PowerShell:
+
+```powershell
+cd backend
+& .\mvnw.cmd "-Dspring-boot.run.profiles=production" "spring-boot:run"
+```
+
+The frontend currently calls the backend on port `8081`.
 
 Run the frontend on Vite's default port `5173`:
 

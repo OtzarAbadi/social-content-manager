@@ -17,7 +17,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.PostConstruct;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -55,19 +54,6 @@ public class InstagramInsightsService {
         this.instagramUserId = clean(instagramUserId);
         this.accessToken = clean(accessToken);
         this.graphApiBaseUrl = clean(graphApiBaseUrl).replaceAll("/+$", "");
-    }
-
-    @PostConstruct
-    public void validateConfigurationAtStartup() {
-        if (accessToken.isEmpty()) {
-            logger.warn("Instagram Insights is disabled: META_PAGE_ACCESS_TOKEN is missing");
-        }
-        if (instagramUserId.isEmpty()) {
-            logger.warn("Instagram Insights is disabled: META_INSTAGRAM_USER_ID is missing");
-        }
-        if (!graphApiBaseUrl.startsWith("https://")) {
-            logger.warn("Instagram Insights Graph API base URL is not HTTPS");
-        }
     }
 
     public Map<String, Object> account(LocalDate since, LocalDate until, String period) {

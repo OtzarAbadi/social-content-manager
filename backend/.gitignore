@@ -39,3 +39,5 @@ target/
 .idea/
 *.iml
 src/main/resources/application.properties
+.env
+run-backend.ps1

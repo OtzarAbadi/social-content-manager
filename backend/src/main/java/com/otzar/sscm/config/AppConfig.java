@@ -27,9 +27,15 @@ public class AppConfig {
     @Bean
     public DataSource dataSource() throws Exception {
         String driverClassName = env.getRequiredProperty("spring.datasource.driver-class-name");
-        String jdbcUrl = env.getRequiredProperty("spring.datasource.url");
-        String dbUser = env.getRequiredProperty("spring.datasource.username");
-        String dbPass = env.getProperty("spring.datasource.password", "");
+        String jdbcUrl = env.getProperty(
+                "SPRING_DATASOURCE_URL",
+                env.getRequiredProperty("spring.datasource.url"));
+        String dbUser = env.getProperty(
+                "SPRING_DATASOURCE_USERNAME",
+                env.getRequiredProperty("spring.datasource.username"));
+        String dbPass = env.getProperty(
+                "SPRING_DATASOURCE_PASSWORD",
+                env.getProperty("spring.datasource.password", ""));
 
         Class.forName(driverClassName);
         String schema = extractSchemaName(jdbcUrl);
