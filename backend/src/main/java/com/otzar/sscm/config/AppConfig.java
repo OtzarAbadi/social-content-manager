@@ -9,9 +9,6 @@ import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.util.Properties;
 
 @Configuration
@@ -27,9 +24,9 @@ public class AppConfig {
     @Bean
     public DataSource dataSource() throws Exception {
         String driverClassName = env.getRequiredProperty("spring.datasource.driver-class-name");
-        String jdbcUrl = env.getProperty(
+        String jdbcUrl = normalizeJdbcUrl(env.getProperty(
                 "SPRING_DATASOURCE_URL",
-                env.getRequiredProperty("spring.datasource.url"));
+                env.getRequiredProperty("spring.datasource.url")));
         String dbUser = env.getProperty(
                 "SPRING_DATASOURCE_USERNAME",
                 env.getRequiredProperty("spring.datasource.username"));
@@ -38,13 +35,6 @@ public class AppConfig {
                 env.getProperty("spring.datasource.password", ""));
 
         Class.forName(driverClassName);
-        String schema = extractSchemaName(jdbcUrl);
-        if (schema != null && !schema.trim().isEmpty()) {
-            try (Connection connection = DriverManager.getConnection(createSchemaUrl(jdbcUrl), dbUser, dbPass);
-                 Statement statement = connection.createStatement()) {
-                statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS `" + schema.replace("`", "``") + "`");
-            }
-        }
 
         ComboPooledDataSource dataSource = new ComboPooledDataSource();
         dataSource.setDriverClass(driverClassName);
@@ -58,29 +48,13 @@ public class AppConfig {
         return dataSource;
     }
 
-    private String createSchemaUrl(String jdbcUrl) {
-        int queryStart = jdbcUrl.indexOf('?');
-        String query = queryStart >= 0 ? jdbcUrl.substring(queryStart) : "";
-        String withoutQuery = queryStart >= 0 ? jdbcUrl.substring(0, queryStart) : jdbcUrl;
-        int schemaSlash = withoutQuery.indexOf('/', "jdbc:mysql://".length());
-
-        if (schemaSlash < 0) {
-            return withoutQuery + "/" + query;
+    static String normalizeJdbcUrl(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        if (trimmed.startsWith("mysql://")) {
+            return "jdbc:" + trimmed;
         }
-
-        return withoutQuery.substring(0, schemaSlash + 1) + query;
-    }
-
-    private String extractSchemaName(String jdbcUrl) {
-        int queryStart = jdbcUrl.indexOf('?');
-        String withoutQuery = queryStart >= 0 ? jdbcUrl.substring(0, queryStart) : jdbcUrl;
-        int schemaSlash = withoutQuery.indexOf('/', "jdbc:mysql://".length());
-
-        if (schemaSlash < 0 || schemaSlash == withoutQuery.length() - 1) {
-            return null;
-        }
-
-        return withoutQuery.substring(schemaSlash + 1);
+        return trimmed;
     }
 
     @Bean
@@ -89,7 +63,9 @@ public class AppConfig {
         sessionFactoryBean.setDataSource(dataSource());
         Properties hibernateProperties = new Properties();
         hibernateProperties.put("hibernate.dialect", "org.hibernate.dialect.MySQL5InnoDBDialect");
-        hibernateProperties.put("hibernate.hbm2ddl.auto", "update");
+        hibernateProperties.put(
+                "hibernate.hbm2ddl.auto",
+                env.getProperty("spring.jpa.hibernate.ddl-auto", "none"));
         hibernateProperties.put("hibernate.jdbc.batch_size", 50);
         hibernateProperties.put("hibernate.connection.characterEncoding", "utf8");
         hibernateProperties.put("hibernate.enable_lazy_load_no_trans", "true");

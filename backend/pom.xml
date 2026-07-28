@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>social-content-manager</name>
-    <description>Social Content Manager with Hibernate XML mapping</description>
+    <description>SocialContent with Hibernate XML mapping</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>

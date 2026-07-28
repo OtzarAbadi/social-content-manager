@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import Cookies from 'js-cookie'
 import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 
 import GlobalToast from './components/GlobalToast.jsx'
+import PwaStatus from './components/PwaStatus.jsx'
+import api from './services/api.js'
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'))
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
@@ -83,10 +84,27 @@ function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const [activeRoute, setActiveRoute] = useState(() => getRouteFromPath(location.pathname, location.search))
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(Cookies.get('token')))
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthResolved, setIsAuthResolved] = useState(false)
   const ActivePage = routes[activeRoute].Component
 
   useEffect(() => {
+    let active = true
+    api.get('/users/me', { suppressGlobalErrorToast: true })
+      .then(() => {
+        if (active) setIsAuthenticated(true)
+      })
+      .catch(() => {
+        if (active) setIsAuthenticated(false)
+      })
+      .finally(() => {
+        if (active) setIsAuthResolved(true)
+      })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthResolved) return
     Promise.resolve().then(() => {
       const requestedRoute = getRouteFromPath(location.pathname, location.search)
       if (!isAuthenticated && requestedRoute !== 'login') {
@@ -99,7 +117,7 @@ function App() {
         setActiveRoute(requestedRoute)
       }
     })
-  }, [isAuthenticated, location.pathname, location.search, navigate])
+  }, [isAuthResolved, isAuthenticated, location.pathname, location.search, navigate])
 
   function navigateTo(routeKey) {
     navigate(routes[routeKey].path)
@@ -111,13 +129,17 @@ function App() {
     navigateTo('dashboard')
   }
 
-  function handleLogout() {
-    Cookies.remove('token', {
-      secure: window.location.protocol === 'https:',
-      sameSite: 'strict',
-    })
-    setIsAuthenticated(false)
-    navigateTo('login')
+  async function handleLogout() {
+    try {
+      await api.post('/users/logout', null, { suppressGlobalErrorToast: true })
+    } finally {
+      setIsAuthenticated(false)
+      navigateTo('login')
+    }
+  }
+
+  if (!isAuthResolved) {
+    return <><div className="route-loader" role="status" aria-label="טוען יישום"><span /></div><PwaStatus /></>
   }
 
   return (
@@ -132,6 +154,7 @@ function App() {
           onLogout={handleLogout}
       />
       </Suspense>
+      <PwaStatus />
       <GlobalToast />
     </>
   )

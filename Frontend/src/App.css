@@ -994,6 +994,88 @@ input:focus-visible {
   }
 }
 
+.pwa-status-stack {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 12000;
+  display: grid;
+  width: min(520px, calc(100vw - 32px));
+  gap: 10px;
+  direction: rtl;
+}
+
+.pwa-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #c8a77b;
+  border-radius: 14px;
+  color: #4f3c2d;
+  background: #f8f4ee;
+  box-shadow: 0 12px 36px rgba(79, 60, 45, .2);
+  font-weight: 700;
+}
+
+.pwa-status-banner span {
+  flex: 1;
+}
+
+.pwa-install-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pwa-install-copy strong {
+  color: #4f3c2d;
+  line-height: 1.35;
+}
+
+.pwa-install-copy span {
+  color: #6d6258;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.pwa-status-banner button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: #4f3c2d;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pwa-status-banner .pwa-close {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  color: #4f3c2d;
+  background: transparent;
+}
+
+.pwa-offline {
+  border-color: #9b6847;
+  background: #fff8ef;
+}
+
+@media (max-width: 560px) {
+  .pwa-status-stack {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    width: calc(100vw - 20px);
+  }
+
+  .pwa-status-banner {
+    flex-wrap: wrap;
+  }
+}
+
 .caption-generator { grid-column: 1 / -1; display: grid; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; grid-auto-flow: row; grid-template-columns: minmax(0,1fr); gap: 14px; padding: 16px; overflow: hidden; border: 1px solid #E3D6C5; border-radius: 16px; background: #FBF7F1; direction: rtl; text-align: right; }
 .caption-generator-heading { display: grid; width: 100%; min-width: 0; grid-auto-flow: row; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 14px; }
 .caption-generator-heading > div { display: grid; width: 100%; min-width: 0; gap: 3px; }

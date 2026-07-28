@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Cookies from 'js-cookie'
 import { Eye, EyeOff, LockKeyhole, User } from 'lucide-react'
 import PageShell from '../components/PageShell.jsx'
 import api from '../services/api.js'
@@ -24,11 +23,6 @@ function LoginPage({ activeRoute, routes, onNavigate, isAuthenticated, onAuthent
         setErrorMessage('שם המשתמש או הסיסמה אינם נכונים')
         return
       }
-      Cookies.set('token', response.data.token, {
-        expires: 7,
-        secure: window.location.protocol === 'https:',
-        sameSite: 'strict',
-      })
       onAuthenticated()
     } catch {
       setErrorMessage('לא הצלחנו להתחבר כרגע. נסו שוב בעוד רגע.')

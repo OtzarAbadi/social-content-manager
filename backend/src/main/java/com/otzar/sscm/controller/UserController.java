@@ -7,7 +7,10 @@ import com.otzar.sscm.models.UserMeResponse;
 import com.otzar.sscm.models.SocialManagerResponse;
 import com.otzar.sscm.service.AuthService;
 import com.otzar.sscm.service.UserService;
+import com.otzar.sscm.config.AuthCookieProperties;
+import com.otzar.sscm.models.LoginResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +23,13 @@ public class UserController {
 
     private final UserService userService;
     private final AuthService authService;
+    private final AuthCookieProperties cookieProperties;
 
-    public UserController(UserService userService, AuthService authService) {
+    public UserController(UserService userService, AuthService authService,
+                          AuthCookieProperties cookieProperties) {
         this.userService = userService;
         this.authService = authService;
+        this.cookieProperties = cookieProperties;
     }
 
     @GetMapping
@@ -49,8 +55,25 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public BasicResponse login(@Valid @RequestBody LoginRequest request) {
-        return userService.login(request);
+    public ResponseEntity<BasicResponse> login(@Valid @RequestBody LoginRequest request) {
+        BasicResponse response = userService.login(request);
+        if (!(response instanceof LoginResponse)) {
+            return ResponseEntity.ok(response);
+        }
+
+        LoginResponse login = (LoginResponse) response;
+        String token = login.getToken();
+        if (!cookieProperties.isExposeToken()) login.setToken(null);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookieProperties.authenticated(token).toString())
+                .body(login);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookieProperties.expired().toString())
+                .build();
     }
 
     @GetMapping("/me")

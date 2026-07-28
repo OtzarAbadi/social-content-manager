@@ -1,6 +1,8 @@
 package com.otzar.sscm.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,9 +25,18 @@ public class FileStorageService {
 
     private final Path uploadDirectory;
     private final CloudinaryStorageClient cloudinaryStorageClient;
+    private final boolean requireCloudinary;
 
     public FileStorageService(CloudinaryStorageClient cloudinaryStorageClient) throws IOException {
+        this(cloudinaryStorageClient, false);
+    }
+
+    @Autowired
+    public FileStorageService(
+            CloudinaryStorageClient cloudinaryStorageClient,
+            @Value("${sscm.storage.require-cloudinary:false}") boolean requireCloudinary) throws IOException {
         this.cloudinaryStorageClient = cloudinaryStorageClient;
+        this.requireCloudinary = requireCloudinary;
         Path workingDirectory = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
         this.uploadDirectory = workingDirectory.getFileName() != null
                 && "backend".equalsIgnoreCase(workingDirectory.getFileName().toString())
@@ -53,11 +64,17 @@ public class FileStorageService {
             throw new IllegalArgumentException("Invalid file type");
         }
 
-        if (contentType.startsWith("image/") && cloudinaryStorageClient.isConfigured()) {
-            try {
-                return cloudinaryStorageClient.uploadImage(file.getBytes());
-            } catch (IOException | RuntimeException exception) {
-                throw new IOException("Could not upload image to Cloudinary", exception);
+        if (contentType.startsWith("image/")) {
+            if (!cloudinaryStorageClient.isConfigured()) {
+                if (requireCloudinary) {
+                    throw new IOException("Production image storage is not configured");
+                }
+            } else {
+                try {
+                    return cloudinaryStorageClient.uploadImage(file.getBytes());
+                } catch (IOException | RuntimeException exception) {
+                    throw new IOException("Could not upload image to Cloudinary", exception);
+                }
             }
         }
 

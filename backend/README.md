@@ -1,6 +1,17 @@
-# Social Content Manager
+# SocialContent
 
-Backend for the SSCM Admin/Client content-management application.
+Backend for the SocialContent Admin/Client content-management application.
+
+## Production deployment
+
+Railway should use `backend` as the service root and build the included
+multi-stage `Dockerfile`. The production server listens on Railway's `PORT`,
+binds to `0.0.0.0`, and exposes the minimal health check at `/api/health`.
+
+Production authentication uses an HttpOnly, Secure, `SameSite=None` cookie and
+exact credentialed CORS origins. Image uploads require Cloudinary because local
+`uploads` storage is not durable on Railway. See `../DEPLOYMENT.md` for all
+required variable names, Vercel settings, database URL format, and limitations.
 
 ## Prerequisites
 

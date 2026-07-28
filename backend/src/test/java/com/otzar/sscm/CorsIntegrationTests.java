@@ -30,13 +30,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "sscm.cors.allowed-origins=https://socialcontent.example")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class CorsIntegrationTests {
 
     private static final String LOCALHOST_ORIGIN = "http://localhost:5173";
     private static final String LAN_ORIGIN = "http://192.168.1.139:5173";
+    private static final String PRODUCTION_ORIGIN = "https://socialcontent.example";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
@@ -58,6 +59,7 @@ class CorsIntegrationTests {
         }
         assertNotNull(configuration);
         assertFalse(configuration.getAllowedOrigins().contains("*"));
+        assertTrue(configuration.getAllowedOrigins().contains(PRODUCTION_ORIGIN));
         assertTrue(configuration.getAllowedOriginPatterns().containsAll(List.of(
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
@@ -65,6 +67,14 @@ class CorsIntegrationTests {
                 "http://10.*.*.*:5173",
                 "http://172.*.*.*:5173")));
         assertEquals(Boolean.TRUE, configuration.getAllowCredentials());
+    }
+
+    @Test
+    void allowsExactlyConfiguredProductionFrontendOrigin() throws Exception {
+        performLogin(PRODUCTION_ORIGIN)
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, PRODUCTION_ORIGIN))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
     }
 
     @Test

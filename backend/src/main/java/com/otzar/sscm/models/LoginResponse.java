@@ -1,7 +1,9 @@
 package com.otzar.sscm.models;
 
 import com.otzar.sscm.entities.User;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoginResponse extends BasicResponse {
     private Long userId;
     private String token;

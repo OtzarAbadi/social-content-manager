@@ -1,0 +1,14 @@
+.env
+.git
+.gitignore
+.idea
+.vscode
+target
+uploads
+run-backend.ps1
+run-backend.example.ps1
+test.http
+*.log
+Dockerfile*
+README.md
+database

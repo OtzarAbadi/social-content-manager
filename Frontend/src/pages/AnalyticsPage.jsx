@@ -37,6 +37,7 @@ function dateParams(range, custom) {
 }
 
 function friendlyError(error) {
+  if (!window.navigator.onLine) return { kind: 'OFFLINE', text: 'אין חיבור לאינטרנט. יש להתחבר מחדש כדי לבצע פעולה זו.' }
   const code = error?.response?.data?.code
   if (code === 'MISSING_PERMISSION') return { kind: code, text: 'חסרה הרשאת instagram_manage_insights. יש לחדש את אסימון Meta לאחר הוספת ההרשאה.' }
   if (code === 'TOKEN_INVALID' || error?.response?.status === 401) return { kind: 'TOKEN_INVALID', text: 'אסימון Meta פג או אינו תקין. יש לחדש אותו בהגדרות השרת.' }

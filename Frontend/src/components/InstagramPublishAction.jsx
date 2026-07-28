@@ -7,6 +7,8 @@ import {
 } from '../api/publishing.js'
 import { showToast } from '../utils/toast.js'
 
+const OFFLINE_MESSAGE = 'אין חיבור לאינטרנט. יש להתחבר מחדש כדי לבצע פעולה זו.'
+
 function InstagramPublishAction({ content, role, publishedMediaId, onPublished }) {
   const [confirming, setConfirming] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -30,6 +32,10 @@ function InstagramPublishAction({ content, role, publishedMediaId, onPublished }
 
   async function publish() {
     if (requestLock.current || publishedMediaId) return
+    if (!window.navigator.onLine) {
+      showToast(OFFLINE_MESSAGE, 'error')
+      return
+    }
     requestLock.current = true
     setPublishing(true)
     try {
