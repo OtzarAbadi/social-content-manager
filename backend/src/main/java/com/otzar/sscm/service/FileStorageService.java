@@ -28,21 +28,42 @@ public class FileStorageService {
     private final boolean requireCloudinary;
 
     public FileStorageService(CloudinaryStorageClient cloudinaryStorageClient) throws IOException {
-        this(cloudinaryStorageClient, false);
+        this(cloudinaryStorageClient, false, "");
     }
 
     @Autowired
     public FileStorageService(
             CloudinaryStorageClient cloudinaryStorageClient,
-            @Value("${sscm.storage.require-cloudinary:false}") boolean requireCloudinary) throws IOException {
+            @Value("${sscm.storage.require-cloudinary:false}") boolean requireCloudinary,
+            @Value("${sscm.storage.path:${SSCM_STORAGE_PATH:}}") String configuredStoragePath) throws IOException {
         this.cloudinaryStorageClient = cloudinaryStorageClient;
         this.requireCloudinary = requireCloudinary;
+        this.uploadDirectory = resolveUploadDirectory(configuredStoragePath);
+        Files.createDirectories(uploadDirectory);
+    }
+
+    private Path resolveUploadDirectory(String configuredStoragePath) {
+        if (StringUtils.hasText(configuredStoragePath)) {
+            return Paths.get(configuredStoragePath.trim()).toAbsolutePath().normalize();
+        }
+
         Path workingDirectory = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        this.uploadDirectory = workingDirectory.getFileName() != null
+        if (isContainerRuntime(workingDirectory)) {
+            return Paths.get(System.getProperty("java.io.tmpdir"), "uploads").toAbsolutePath().normalize();
+        }
+
+        return workingDirectory.getFileName() != null
                 && "backend".equalsIgnoreCase(workingDirectory.getFileName().toString())
                 ? workingDirectory.resolve("uploads")
                 : workingDirectory.resolve("backend").resolve("uploads");
-        Files.createDirectories(uploadDirectory);
+    }
+
+    private boolean isContainerRuntime(Path workingDirectory) {
+        return System.getenv("RAILWAY_ENVIRONMENT") != null
+                || System.getenv("RAILWAY_PROJECT_ID") != null
+                || workingDirectory.startsWith(Paths.get("/app"))
+                || (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux")
+                    && Files.exists(Paths.get("/.dockerenv")));
     }
 
     public String store(MultipartFile file) throws IOException {
