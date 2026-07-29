@@ -49,15 +49,11 @@ export function resolveDevelopmentApiBaseUrl(
   rawUrl,
   browserHostname = window.location.hostname,
 ) {
-  const parsed = parseConfiguredUrl(
-    rawUrl,
-    'VITE_API_URL is required. Add it to Frontend/.env.',
-  )
-
-  if (parsed.hostname === 'localhost' && browserHostname !== 'localhost') {
-    parsed.hostname = browserHostname
+  if (!rawUrl?.trim()) {
+    return `http://${browserHostname}:8081/api`
   }
 
+  const parsed = parseConfiguredUrl(rawUrl)
   return `${parsed.origin}/api`
 }
 

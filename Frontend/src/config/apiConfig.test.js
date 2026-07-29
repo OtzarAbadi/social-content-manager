@@ -32,9 +32,21 @@ describe('production API URL resolution', () => {
     )
   })
 
-  it('preserves local LAN development substitution', () => {
-    expect(resolveApiBaseUrl('http://localhost:8081', {
+  it('uses the browser hostname when the development override is missing', () => {
+    expect(resolveApiBaseUrl('', {
       browserHostname: '192.168.1.25',
     })).toBe('http://192.168.1.25:8081/api')
+  })
+
+  it('uses localhost when that is the development browser hostname', () => {
+    expect(resolveApiBaseUrl(undefined, {
+      browserHostname: 'localhost',
+    })).toBe('http://localhost:8081/api')
+  })
+
+  it('preserves an explicit development override', () => {
+    expect(resolveApiBaseUrl('http://localhost:9090', {
+      browserHostname: '192.168.1.25',
+    })).toBe('http://localhost:9090/api')
   })
 })
