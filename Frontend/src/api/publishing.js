@@ -5,6 +5,18 @@ export async function getPublishingStatus({ signal } = {}) {
   return response.data
 }
 
+export async function getInstagramSettings() {
+  const response = await api.get('/instagram/settings')
+  return response.data
+}
+
+export async function updateInstagramSettings(settings) {
+  const response = await api.put('/instagram/settings', settings, {
+    suppressGlobalErrorToast: true,
+  })
+  return response.data
+}
+
 export async function publishContentToInstagram(contentId) {
   const response = await api.post(
     `/contents/${contentId}/publish/instagram`,

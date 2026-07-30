@@ -26,6 +26,7 @@ const statusOptions = [
 const contentTypeOptions = [
   { value: 'IMAGE', label: 'תמונה' },
   { value: 'VIDEO', label: 'וידאו' },
+  { value: 'REEL', label: 'ריל' },
   { value: 'TEXT', label: 'טקסט' },
 ]
 
@@ -74,6 +75,19 @@ function toInputDateTime(value) {
 
 function getContentId(content) {
   return content.content_id ?? content.contentId
+}
+
+function sortContentsNewest(items = []) {
+  return [...items].sort((first, second) => {
+    const firstTime = Date.parse(first.createdAt || first.created_at || '')
+    const secondTime = Date.parse(second.createdAt || second.created_at || '')
+    if (Number.isFinite(firstTime) || Number.isFinite(secondTime)) {
+      if (!Number.isFinite(firstTime)) return 1
+      if (!Number.isFinite(secondTime)) return -1
+      if (firstTime !== secondTime) return secondTime - firstTime
+    }
+    return Number(getContentId(second) || 0) - Number(getContentId(first) || 0)
+  })
 }
 
 function getClientId(client) {
@@ -127,6 +141,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
 
   const [clientSearch, setClientSearch] = useState('')
+  const [commentSearch, setCommentSearch] = useState('')
+  const [dashboardClientId, setDashboardClientId] = useState('')
   const [contentFilter, setContentFilter] = useState({
     contentId: '',
     clientId: '',
@@ -148,6 +164,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [editingContentId, setEditingContentId] = useState(null)
   const [clientDraft, setClientDraft] = useState(null)
   const [contentDraft, setContentDraft] = useState(null)
+  const [replacementMedia, setReplacementMedia] = useState(null)
 
   const [loading, setLoading] = useState({
     clients: true,
@@ -195,19 +212,37 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       ].some((value) => String(value || '').toLocaleLowerCase('he-IL').includes(query))
     })
   }, [clientSearch, clients, contents, userById])
+  const visibleComments = useMemo(() => {
+    const query = commentSearch.trim().toLocaleLowerCase('he-IL')
+    if (!query) return comments
+    return comments.filter((comment) => {
+      const content = contents.find((item) => Number(getContentId(item)) === Number(comment.contentId))
+      const client = clientById.get(Number(content?.clientId ?? content?.client_id))
+      const user = userById.get(Number(comment.userId))
+      return [client?.business_name, client?.phone, content?.title, comment.commentText,
+        user?.full_name, user?.username]
+        .some((value) => String(value || '').toLocaleLowerCase('he-IL').includes(query))
+    })
+  }, [commentSearch, comments, contents, clientById, userById])
 
+  const dashboardContents = useMemo(() => {
+    const selected = profile.role === 'CLIENT' ? profile.clientId : dashboardClientId
+    return selected
+      ? contents.filter((content) => Number(content.clientId ?? content.client_id) === Number(selected))
+      : contents
+  }, [contents, dashboardClientId, profile.clientId, profile.role])
   const waitingApprovalCount = useMemo(() => {
-    return contents.filter((content) => content.status === 'WAITING_APPROVAL').length
-  }, [contents])
-  const statusCounts = useMemo(() => contents.reduce((counts, content) => {
+    return dashboardContents.filter((content) => content.status === 'WAITING_APPROVAL').length
+  }, [dashboardContents])
+  const statusCounts = useMemo(() => dashboardContents.reduce((counts, content) => {
     counts[content.status] = (counts[content.status] || 0) + 1
     return counts
-  }, {}), [contents])
-  const recentContents = useMemo(() => contents.slice(-3).reverse(), [contents])
-  const upcomingContents = useMemo(() => contents
+  }, {}), [dashboardContents])
+  const recentContents = useMemo(() => dashboardContents.slice(0, 3), [dashboardContents])
+  const upcomingContents = useMemo(() => dashboardContents
     .filter((content) => content.plannedPublishDate && new Date(content.plannedPublishDate) >= new Date())
     .sort((a, b) => new Date(a.plannedPublishDate) - new Date(b.plannedPublishDate))
-    .slice(0, 3), [contents])
+    .slice(0, 3), [dashboardContents])
 
   const isClient = profile.role === 'CLIENT'
   const isAdmin = profile.role === 'ADMIN'
@@ -294,7 +329,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     try {
       const response = await api.get('/contents')
-      setContents(response.data)
+      setContents(sortContentsNewest(response.data))
       return response.data
     } catch {
       setErrors((current) => ({
@@ -628,7 +663,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     try {
       const response = await api.get(`/contents/client/${clientId}`)
-      setContents(response.data)
+      setContents(sortContentsNewest(response.data))
       setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
       navigateToPanel('contents')
       showFilteredResults('contents')
@@ -655,7 +690,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     try {
       const response = await api.get(`/contents/status/${status}`)
-      setContents(response.data)
+      setContents(sortContentsNewest(response.data))
       setContentFilter((current) => ({ ...current, status }))
       navigateToPanel('contents')
       showFilteredResults('contents')
@@ -681,6 +716,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       content_type: content.content_type ?? 'IMAGE',
       plannedPublishDate: toInputDateTime(content.plannedPublishDate),
     })
+    setReplacementMedia(null)
   }
 
   function handleContentDraftChange(event) {
@@ -708,9 +744,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     setErrors((current) => ({ ...current, contents: '' }))
 
     try {
-      await api.put(`/contents/${contentId}`, payload)
+      if (replacementMedia) {
+        const form = new FormData()
+        form.append('clientId', payload.clientId)
+        form.append('title', payload.title)
+        form.append('description', payload.description || '')
+        form.append('contentType', replacementMedia.type.startsWith('video/') ? 'VIDEO' : 'IMAGE')
+        if (payload.plannedPublishDate) form.append('plannedPublishDate', payload.plannedPublishDate)
+        form.append('file', replacementMedia)
+        await api.put(`/contents/${contentId}`, form)
+      } else {
+        await api.put(`/contents/${contentId}`, payload)
+      }
       setEditingContentId(null)
       setContentDraft(null)
+      setReplacementMedia(null)
       await loadContents()
       showNotice(`תוכן #${contentId} עודכן`)
     } catch {
@@ -917,7 +965,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 <span>לקוחות</span>
               </div>
               <div>
-                <strong>{contents.length}</strong>
+                <strong>{dashboardContents.length}</strong>
                 <span>תכנים</span>
               </div>
               <div>
@@ -956,6 +1004,22 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
         <section className="workspace-panel">
           {activeRoute === 'dashboard' && <section className="dashboard-overview" aria-label="סקירת פעילות">
             <div className="overview-heading"><div><p className="eyebrow">סקירה מהירה</p><h2>{isAdmin ? 'מה קורה עכשיו' : `שלום, ${profile.fullName || 'טוב שחזרת'}`}</h2></div>{isAdmin && <button type="button" className="primary-button" onClick={() => { navigateToPanel('contents'); setShowCreateForm((current) => ({ ...current, contents: true })) }}>+ תוכן חדש</button>}</div>
+            {isAdmin && <label className="dashboard-client-switcher">
+              לוח לקוח
+              <select value={dashboardClientId} onChange={(event) => setDashboardClientId(event.target.value)}>
+                <option value="">כל הלקוחות</option>
+                {clients.map((client) => <option key={getClientId(client)} value={getClientId(client)}>{client.business_name}</option>)}
+              </select>
+            </label>}
+            <div className="dashboard-status-grid">
+              <span>סה״כ <strong>{dashboardContents.length}</strong></span>
+              <span>טיוטות <strong>{statusCounts.DRAFT || 0}</strong></span>
+              <span>ממתינים <strong>{waitingApprovalCount}</strong></span>
+              <span>מאושרים <strong>{statusCounts.APPROVED || 0}</strong></span>
+              <span>נדחו <strong>{statusCounts.REJECTED || 0}</strong></span>
+              <span>פורסמו <strong>{statusCounts.PUBLISHED || 0}</strong></span>
+              <span>מתוזמנים <strong>{dashboardContents.filter((item) => item.plannedPublishDate).length}</strong></span>
+            </div>
             <div className="overview-columns">
               <div className="overview-card"><h3>תוכן אחרון</h3>{recentContents.length ? recentContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => navigateToPanel('contents')}><span>{content.title}</span><StatusBadge status={content.status} /></button>) : <p>אין עדיין תכנים להצגה</p>}</div>
               <div className="overview-card"><h3>פרסומים קרובים</h3>{upcomingContents.length ? upcomingContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => onNavigate('calendar')}><span>{content.title}</span><time>{new Date(content.plannedPublishDate).toLocaleDateString('he-IL')}</time></button>) : <p>אין פרסומים מתוכננים בקרוב</p>}</div>
@@ -1433,6 +1497,25 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                   onChange={handleContentDraftChange}
                                 />
                               </label>
+                              <div className="wide-field replace-media-field">
+                                <span>מדיה נוכחית</span>
+                                <MediaPreview
+                                  path={replacementMedia ? URL.createObjectURL(replacementMedia) : content.file_url}
+                                  type={replacementMedia
+                                    ? (replacementMedia.type.startsWith('video/') ? 'VIDEO' : 'IMAGE')
+                                    : content.content_type}
+                                  alt={content.title}
+                                />
+                                <label>
+                                  החלפת מדיה
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
+                                    onChange={(event) => setReplacementMedia(event.target.files?.[0] || null)}
+                                  />
+                                </label>
+                                <small>התוכן יעודכן רק לאחר שההעלאה תסתיים בהצלחה.</small>
+                              </div>
                               <label className="wide-field">
                                 תיאור
                                 <textarea
@@ -1674,6 +1757,19 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 </button>
               </div>
 
+              <div className="tool-row comments-global-search">
+                <label>
+                  חיפוש בכל התגובות
+                  <input
+                    type="search"
+                    value={commentSearch}
+                    onChange={(event) => setCommentSearch(event.target.value)}
+                    placeholder="עסק, טלפון, תוכן, תגובה או משתמש"
+                  />
+                </label>
+                {commentSearch && <button type="button" className="ghost-button small-button" onClick={() => setCommentSearch('')}>ניקוי</button>}
+              </div>
+
               <div className="tool-row filter-grid">
                 <div className="filter-control">
                   <label>
@@ -1750,18 +1846,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {!resultsHidden.comments && (
                 <div className="comment-list">
-                  {comments.map((comment) => (
-                    <article id={`comment-${comment.commentId}`} className={`comment-item ${highlightedElementId === `comment-${comment.commentId}` ? 'deep-link-highlight' : ''}`} key={comment.commentId}>
+                  {visibleComments.map((comment) => {
+                    const content = contents.find((item) => Number(getContentId(item)) === Number(comment.contentId))
+                    const customer = clientById.get(Number(content?.clientId ?? content?.client_id))
+                    const author = userById.get(Number(comment.userId))
+                    return <article id={`comment-${comment.commentId}`} className={`comment-item ${highlightedElementId === `comment-${comment.commentId}` ? 'deep-link-highlight' : ''}`} key={comment.commentId}>
                       <div>
-                        <h3>תגובה #{comment.commentId}</h3>
+                        <h3>{author?.full_name || author?.username || 'משתמש'}</h3>
                         <p>{comment.commentText}</p>
                       </div>
                       <div className="metadata-row">
-                        <span>תוכן #{comment.contentId}</span>
-                        <span>User #{comment.userId}</span>
+                        <span>{author?.role === 'ADMIN' ? 'מנהל' : 'לקוח'}</span>
+                        <span>{customer?.business_name || 'עסק לא ידוע'}</span>
+                        <span>{content?.title || `תוכן #${comment.contentId}`}</span>
+                        <time>{comment.createdAt ? new Date(comment.createdAt).toLocaleString('he-IL') : 'תאריך לא זמין'}</time>
                       </div>
                     </article>
-                  ))}
+                  })}
                 </div>
               )}
             </section>

@@ -13,6 +13,15 @@ import MediaPreview from '../components/MediaPreview.jsx'
 
 function idOf(content) { return content.content_id ?? content.contentId }
 function clientIdOf(content) { return content.clientId ?? content.client_id }
+function sortContentsNewest(items = []) {
+  return [...items].sort((first, second) => {
+    const firstTime = Date.parse(first.createdAt || first.created_at || '')
+    const secondTime = Date.parse(second.createdAt || second.created_at || '')
+    if (!Number.isFinite(firstTime)) return Number.isFinite(secondTime) ? 1 : Number(idOf(second) || 0) - Number(idOf(first) || 0)
+    if (!Number.isFinite(secondTime)) return -1
+    return secondTime - firstTime
+  })
+}
 function toLocalDateTime(date) {
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
@@ -38,7 +47,7 @@ function CalendarPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
         isAdmin ? api.get('/clients') : Promise.resolve({ data: [] }),
       ])
       setProfile(meResponse.data)
-      setContents(contentResponse.data)
+      setContents(sortContentsNewest(contentResponse.data))
       setClients(clientResponse.data)
     } catch {
       setError('לא הצלחנו לטעון את לוח התוכן. נסו שוב.')

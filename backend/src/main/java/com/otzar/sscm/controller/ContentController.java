@@ -311,7 +311,7 @@ public class ContentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Content> updateContent(@PathVariable Long id,
                                                  @RequestBody Content content,
                                                  @CookieValue(value = "token", required = false) String token) {
@@ -338,6 +338,35 @@ public class ContentController {
         }
 
         return ResponseEntity.ok(result.getContent());
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateContentWithMedia(
+            @PathVariable Long id,
+            @Valid @ModelAttribute CreateContentMultipartRequest request,
+            @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
+        Content update = new Content();
+        update.setClientId(request.getClientId());
+        update.setTitle(request.getTitle().trim());
+        update.setDescription(request.getDescription());
+        update.setContent_type(request.getContentType());
+        update.setPlannedPublishDate(request.getPlannedPublishDate());
+        try {
+            // The persisted content is untouched unless the replacement upload completes.
+            update.setFile_url(fileStorageService.store(request.getFile()));
+            ContentOperationResult result = contentService.update(id, update, currentUser.get().getUser_id());
+            if (!result.isSuccess()) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(result.getContent());
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            return ResponseEntity.badRequest().body(new ApiResponse(false, exception.getMessage()));
+        } catch (IOException exception) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(new ApiResponse(false, "Could not upload replacement media"));
+        }
     }
 
     @DeleteMapping("/{id}")

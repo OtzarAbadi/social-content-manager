@@ -5,7 +5,9 @@ import {
 } from 'lucide-react'
 import PageShell from '../components/PageShell.jsx'
 import Skeleton from '../components/Skeleton.jsx'
-import { getPublishingStatus } from '../api/publishing.js'
+import {
+  getInstagramSettings, getPublishingStatus, updateInstagramSettings,
+} from '../api/publishing.js'
 
 function StatusLine({ label, value, state = 'neutral' }) {
   return <div className="integration-status-line">
@@ -17,16 +19,45 @@ function StatusLine({ label, value, state = 'neutral' }) {
 function IntegrationsPage(props) {
   const [status, setStatus] = useState(null)
   const [state, setState] = useState('loading')
+  const [settings, setSettings] = useState({ instagramUserId: '', graphApiBaseUrl: '' })
+  const [saving, setSaving] = useState(false)
+  const [saveState, setSaveState] = useState('')
 
   const load = useCallback(async () => {
     setState('loading')
     try {
-      setStatus(await getPublishingStatus())
+      const [publishingStatus, instagramSettings] = await Promise.all([
+        getPublishingStatus(), getInstagramSettings(),
+      ])
+      setStatus(publishingStatus)
+      setSettings({
+        instagramUserId: instagramSettings.instagramUserId || '',
+        graphApiBaseUrl: instagramSettings.graphApiBaseUrl || '',
+        accessTokenConfigured: Boolean(instagramSettings.accessTokenConfigured),
+      })
       setState('ready')
     } catch (error) {
       setState(error?.response?.status === 403 ? 'forbidden' : 'error')
     }
   }, [])
+
+  async function saveSettings(event) {
+    event.preventDefault()
+    setSaving(true)
+    setSaveState('')
+    try {
+      const updated = await updateInstagramSettings({
+        instagramUserId: settings.instagramUserId.trim(),
+        graphApiBaseUrl: settings.graphApiBaseUrl.trim(),
+      })
+      setSettings((current) => ({ ...current, ...updated }))
+      setSaveState('success')
+    } catch {
+      setSaveState('error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   useEffect(() => { Promise.resolve().then(load) }, [load])
 
@@ -62,6 +93,40 @@ function IntegrationsPage(props) {
         </section>
 
         <div className="integration-detail-grid">
+          <form className="integration-detail-card instagram-settings-form" onSubmit={saveSettings}>
+            <h3><Camera size={20} aria-hidden="true" /> פרטי חשבון Instagram</h3>
+            <label>
+              מזהה חשבון Instagram מקצועי
+              <input
+                value={settings.instagramUserId}
+                onChange={(event) => setSettings((current) => ({ ...current, instagramUserId: event.target.value }))}
+                inputMode="numeric"
+                pattern="[0-9]{5,40}"
+                required
+                disabled={saving}
+              />
+            </label>
+            <label>
+              כתובת Graph API
+              <input
+                type="url"
+                dir="ltr"
+                value={settings.graphApiBaseUrl}
+                onChange={(event) => setSettings((current) => ({ ...current, graphApiBaseUrl: event.target.value }))}
+                pattern="https://graph\.facebook\.com/v[0-9]+\.[0-9]+/?"
+                required
+                disabled={saving}
+              />
+            </label>
+            <p className="instagram-token-state">
+              אסימון Meta: {settings.accessTokenConfigured ? 'מוגדר באופן מאובטח בשרת' : 'לא מוגדר בשרת'}
+            </p>
+            {saveState === 'success' && <p className="instagram-settings-feedback success" role="status">פרטי Instagram עודכנו בהצלחה.</p>}
+            {saveState === 'error' && <p className="instagram-settings-feedback error" role="alert">לא הצלחנו לעדכן את הפרטים. בדקו את הערכים ונסו שוב.</p>}
+            <button type="submit" className="primary-button" disabled={saving}>
+              {saving ? <><span className="button-spinner" />שומר...</> : 'שמירת פרטי Instagram'}
+            </button>
+          </form>
           <article className="integration-detail-card">
             <h3><ShieldCheck size={20} aria-hidden="true" /> מצב החיבור</h3>
             <StatusLine label="ספק פרסום פעיל" value={provider === 'LOCAL' ? 'מקומי' : provider} />

@@ -19,6 +19,7 @@ public class Content {
 
     private ContentStatus status;
     private LocalDateTime plannedPublishDate;
+    private LocalDateTime createdAt;
 
     public Long getContent_id() { return content_id; }
     public void setContent_id(Long content_id) { this.content_id = content_id; }
@@ -57,4 +58,6 @@ public class Content {
 
     public LocalDateTime getPlannedPublishDate() { return plannedPublishDate; }
     public void setPlannedPublishDate(LocalDateTime plannedPublishDate) { this.plannedPublishDate = plannedPublishDate; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

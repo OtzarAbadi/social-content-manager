@@ -22,20 +22,22 @@ public class ContentRepository {
     }
 
     public List<Content> findAll() {
-        return persist.loadList(Content.class);
+        return persist.getQuerySession()
+                .createQuery("FROM Content ORDER BY createdAt DESC, content_id DESC", Content.class)
+                .list();
     }
 
     public List<Content> findByClientId(Long clientId) {
-        return persist.loadListByParameter("FROM Content WHERE clientId = :clientId", "clientId", clientId, Content.class);
+        return persist.loadListByParameter("FROM Content WHERE clientId = :clientId ORDER BY createdAt DESC, content_id DESC", "clientId", clientId, Content.class);
     }
 
     public List<Content> findByStatus(ContentStatus status) {
-        return persist.loadListByParameter("FROM Content WHERE status = :status", "status", status, Content.class);
+        return persist.loadListByParameter("FROM Content WHERE status = :status ORDER BY createdAt DESC, content_id DESC", "status", status, Content.class);
     }
 
     public List<Content> findByClientIdAndStatus(Long clientId, ContentStatus status) {
         return persist.getQuerySession()
-                .createQuery("FROM Content WHERE clientId = :clientId AND status = :status", Content.class)
+                .createQuery("FROM Content WHERE clientId = :clientId AND status = :status ORDER BY createdAt DESC, content_id DESC", Content.class)
                 .setParameter("clientId", clientId)
                 .setParameter("status", status)
                 .list();

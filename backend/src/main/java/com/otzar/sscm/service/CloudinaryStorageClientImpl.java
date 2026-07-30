@@ -34,11 +34,20 @@ public class CloudinaryStorageClientImpl implements CloudinaryStorageClient {
 
     @Override
     public String uploadImage(byte[] bytes) throws IOException {
+        return upload(bytes, "image");
+    }
+
+    @Override
+    public String uploadVideo(byte[] bytes) throws IOException {
+        return upload(bytes, "video");
+    }
+
+    private String upload(byte[] bytes, String resourceType) throws IOException {
         if (!configured) {
-            throw new IllegalStateException("Cloudinary image storage is not configured");
+            throw new IllegalStateException("Cloudinary media storage is not configured");
         }
         Map<?, ?> result = cloudinary.uploader().upload(bytes, ObjectUtils.asMap(
-                "resource_type", "image",
+                "resource_type", resourceType,
                 "folder", "sscm"));
         Object secureUrl = result.get("secure_url");
         if (secureUrl == null || !secureUrl.toString().startsWith("https://")) {

@@ -23,7 +23,7 @@ export function getImageUrl(path) {
 export function getMediaType(path, declaredType = '') {
   const cleanPath = String(path || '').split(/[?#]/)[0].toLowerCase()
   const type = String(declaredType || '').toUpperCase()
-  if (type === 'VIDEO' || /\.(mp4|webm|mov|m4v)$/.test(cleanPath)) return 'video'
+  if (type === 'VIDEO' || type === 'REEL' || /\.(mp4|webm|mov|m4v)$/.test(cleanPath)) return 'video'
   if (type === 'IMAGE' || /\.(jpe?g|png|gif|webp|avif|bmp|svg)$/.test(cleanPath)) return 'image'
   return path ? 'file' : 'none'
 }

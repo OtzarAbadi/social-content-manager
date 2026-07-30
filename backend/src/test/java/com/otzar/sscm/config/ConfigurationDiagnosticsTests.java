@@ -16,7 +16,7 @@ class ConfigurationDiagnosticsTests {
         String token = "token-that-must-not-be-logged";
         String secret = "secret-that-must-not-be-logged";
         ConfigurationDiagnostics diagnostics = new ConfigurationDiagnostics(
-                token, "ig-user", "https://graph.example", "cloud", "key", secret);
+                token, "ig-user", "https://graph.facebook.com/v25.0", "cloud", "key", secret);
 
         Logger logger = (Logger) LoggerFactory.getLogger(ConfigurationDiagnostics.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -31,9 +31,15 @@ class ConfigurationDiagnosticsTests {
         String messages = appender.list.stream()
                 .map(ILoggingEvent::getFormattedMessage)
                 .reduce("", (left, right) -> left + "\n" + right);
-        assertTrue(messages.contains("Meta configuration present: yes"));
+        assertTrue(messages.contains("Meta access token present: yes"));
+        assertTrue(messages.contains("Meta environment configuration complete: yes"));
         assertTrue(messages.contains("Cloudinary configuration present: yes"));
-        assertTrue(messages.contains("Instagram user ID present: yes"));
+        assertTrue(messages.contains("Environment Instagram user ID present: yes"));
+        assertTrue(messages.contains("Versioned Meta Graph API URL valid: yes"));
+        assertTrue(messages.contains("Instagram account ID source: ENV"));
+        assertTrue(messages.contains("Instagram account ID present: true"));
+        assertTrue(messages.contains("Graph API base source: ENV"));
+        assertTrue(messages.contains("Meta token present: true"));
         assertFalse(messages.contains(token));
         assertFalse(messages.contains(secret));
         assertFalse(messages.toLowerCase().contains("authorization"));

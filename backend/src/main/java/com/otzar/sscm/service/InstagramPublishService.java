@@ -9,6 +9,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -27,23 +28,33 @@ public class InstagramPublishService {
     private final String instagramUserId;
     private final String accessToken;
     private final String graphApiBaseUrl;
+    private final InstagramConnectionSettingsService connectionSettings;
 
     @Autowired
     public InstagramPublishService(
             ContentService contentService,
             @Value("${META_INSTAGRAM_USER_ID:}") String instagramUserId,
             @Value("${META_PAGE_ACCESS_TOKEN:}") String accessToken,
-            @Value("${META_GRAPH_API_BASE_URL:https://graph.facebook.com/v25.0}") String graphApiBaseUrl) {
-        this(contentService, new RestTemplate(), instagramUserId, accessToken, graphApiBaseUrl);
+            @Value("${META_GRAPH_API_BASE_URL:${META_GRAPH_API_BASE:https://graph.facebook.com/v25.0}}") String graphApiBaseUrl,
+            InstagramConnectionSettingsService connectionSettings) {
+        this(contentService, new RestTemplate(), instagramUserId, accessToken, graphApiBaseUrl,
+                connectionSettings);
     }
 
     public InstagramPublishService(ContentService contentService, RestTemplate restTemplate,
                                    String instagramUserId, String accessToken, String graphApiBaseUrl) {
+        this(contentService, restTemplate, instagramUserId, accessToken, graphApiBaseUrl, null);
+    }
+
+    private InstagramPublishService(ContentService contentService, RestTemplate restTemplate,
+                                   String instagramUserId, String accessToken, String graphApiBaseUrl,
+                                   InstagramConnectionSettingsService connectionSettings) {
         this.contentService = contentService;
         this.restTemplate = restTemplate;
         this.instagramUserId = trim(instagramUserId);
         this.accessToken = trim(accessToken);
         this.graphApiBaseUrl = trimTrailingSlash(graphApiBaseUrl);
+        this.connectionSettings = connectionSettings;
     }
 
     public InstagramPublishResponse publish(Long contentId) {
@@ -53,23 +64,64 @@ public class InstagramPublishService {
                         InstagramPublishException.Reason.CONTENT_NOT_FOUND, "Content not found"));
         validateContent(content);
 
-        String creationId = postForId("media", form(
-                "image_url", content.getFile_url(),
-                "caption", content.getDescription() == null ? "" : content.getDescription(),
-                "access_token", accessToken));
+        boolean video = isVideo(content);
+        MultiValueMap<String, String> container = form(
+                video ? "video_url" : "image_url", content.getFile_url(),
+                "caption", content.getDescription() == null ? "" : content.getDescription());
+        if (video) container.add("media_type", "REELS");
+        String creationId = postForId("media", container);
+        if (video) waitUntilReady(creationId);
         String mediaId = postForId("media_publish", form(
-                "creation_id", creationId,
-                "access_token", accessToken));
+                "creation_id", creationId));
         return new InstagramPublishResponse(true, mediaId);
     }
 
+    private void waitUntilReady(String creationId) {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            URI uri = UriComponentsBuilder.fromHttpUrl(currentGraphApiBaseUrl())
+                    .pathSegment(creationId)
+                    .queryParam("fields", "status_code,status")
+                    .build().encode().toUri();
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(currentAccessToken());
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        uri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+                Map body = response.getBody();
+                String status = body == null ? "" : String.valueOf(body.get("status_code"));
+                if ("FINISHED".equals(status)) return;
+                if ("ERROR".equals(status) || "EXPIRED".equals(status)) {
+                    throw new InstagramPublishException(
+                            InstagramPublishException.Reason.MEDIA_PROCESSING_FAILED,
+                            "Instagram could not process the video");
+                }
+                Thread.sleep(2000);
+            } catch (InstagramPublishException exception) {
+                throw exception;
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new InstagramPublishException(
+                        InstagramPublishException.Reason.MEDIA_PROCESSING_FAILED,
+                        "Video processing was interrupted", exception);
+            } catch (RestClientException exception) {
+                throw new InstagramPublishException(
+                        InstagramPublishException.Reason.META_API_FAILURE,
+                        "Could not check Instagram video processing", exception);
+            }
+        }
+        throw new InstagramPublishException(
+                InstagramPublishException.Reason.MEDIA_PROCESSING_FAILED,
+                "Instagram video processing timed out");
+    }
+
     private String postForId(String action, MultiValueMap<String, String> form) {
-        URI uri = UriComponentsBuilder.fromHttpUrl(graphApiBaseUrl)
-                .pathSegment(instagramUserId, action)
+        URI uri = UriComponentsBuilder.fromHttpUrl(currentGraphApiBaseUrl())
+                .pathSegment(currentInstagramUserId(), action)
                 .build()
                 .toUri();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setBearerAuth(currentAccessToken());
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(
                     uri, new HttpEntity<>(form, headers), Map.class);
@@ -95,17 +147,27 @@ public class InstagramPublishService {
                     InstagramPublishException.Reason.CONTENT_NOT_APPROVED,
                     "Only approved content can be published to Instagram");
         }
-        if (!"IMAGE".equalsIgnoreCase(content.getContent_type())
-                || content.getFile_url() == null || content.getFile_url().trim().isEmpty()) {
+        if (content.getFile_url() == null || content.getFile_url().trim().isEmpty()) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.IMAGE_REQUIRED,
-                    "An image is required for Instagram publishing");
+                    "Media is required for Instagram publishing");
+        }
+        String type = content.getContent_type() == null ? "" : content.getContent_type().toUpperCase();
+        if (!type.equals("IMAGE") && !type.equals("VIDEO") && !type.equals("REEL")) {
+            throw new InstagramPublishException(
+                    InstagramPublishException.Reason.UNSUPPORTED_MEDIA,
+                    "Only images, videos, and reels can be published");
         }
         if (!isPublicHttpsUrl(content.getFile_url())) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.IMAGE_NOT_PUBLIC,
                     "The image must have a public HTTPS URL");
         }
+    }
+
+    private boolean isVideo(Content content) {
+        String type = content.getContent_type() == null ? "" : content.getContent_type();
+        return "VIDEO".equalsIgnoreCase(type) || "REEL".equalsIgnoreCase(type);
     }
 
     private boolean isPublicHttpsUrl(String value) {
@@ -125,7 +187,8 @@ public class InstagramPublishService {
     }
 
     private void requireConfiguration() {
-        if (instagramUserId.isEmpty() || accessToken.isEmpty() || graphApiBaseUrl.isEmpty()) {
+        if (currentInstagramUserId().isEmpty() || currentAccessToken().isEmpty()
+                || currentGraphApiBaseUrl().isEmpty()) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.NOT_CONFIGURED,
                     "Instagram publishing is not configured");
@@ -148,5 +211,15 @@ public class InstagramPublishService {
         String result = trim(value);
         while (result.endsWith("/")) result = result.substring(0, result.length() - 1);
         return result;
+    }
+    private String currentInstagramUserId() {
+        return connectionSettings == null ? instagramUserId : trim(connectionSettings.instagramUserId());
+    }
+    private String currentGraphApiBaseUrl() {
+        return connectionSettings == null ? graphApiBaseUrl
+                : trimTrailingSlash(connectionSettings.graphApiBaseUrl());
+    }
+    private String currentAccessToken() {
+        return connectionSettings == null ? accessToken : trim(connectionSettings.accessToken());
     }
 }

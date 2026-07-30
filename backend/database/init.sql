@@ -84,6 +84,13 @@ CREATE TABLE comments (
                           FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE instagram_connection_settings (
+    settings_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    instagram_user_id VARCHAR(40) NOT NULL,
+    graph_api_base_url VARCHAR(255) NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE notifications (
     notification_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -125,9 +132,10 @@ CREATE TABLE publication_records (
 
 INSERT INTO users (full_name, email, username, password, role, token)
 VALUES
-    ('Otzar Admin', 'admin@sscm.com', 'admin', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'ADMIN', ''),
+    ('Admin', 'admin@sscm.com', 'admin', '$2a$10$ruYktCywZWcCmcdsm8xMQe/4G1jOU/e9rtO7j4qKyV9iQ4EHiwf9K', 'ADMIN', ''),
     ('Stav Beauty Studio', 'client1@sscm.com', 'client1', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'CLIENT', ''),
-    ('Hodaya Nails', 'client2@sscm.com', 'client2', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'CLIENT', '');
+    ('Hodaya Nails', 'client2@sscm.com', 'client2', '$2a$10$DDh1xXonjjHc1jsb1Z.O9eBdmJGispoDRyn1pMLmLXjIi2awwz.5u', 'CLIENT', ''),
+    ('Otzar', 'otzar@sscm.com', 'otzar', '$2a$10$QiC290Pfu8DVrzOm3GaAkOZLnoBYzH5ogIZG8Uzp3HLgU9D4D2.fm', 'CLIENT', '');
 
 INSERT INTO admins (user_id)
 VALUES (1);
@@ -135,7 +143,8 @@ VALUES (1);
 INSERT INTO clients (user_id, admin_id, business_name, phone)
 VALUES
     (2, 1, 'Stav Beauty Studio', '0501234567'),
-    (3, 1, 'Hodaya Nails', '0527654321');
+    (3, 1, 'Hodaya Nails', '0527654321'),
+    (4, 1, 'Otzar', '');
 
 INSERT INTO contents (client_id, title, description, file_url, content_type, status)
 VALUES

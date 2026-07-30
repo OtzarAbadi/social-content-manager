@@ -6,6 +6,7 @@ import {
   publishContentToInstagram,
 } from '../api/publishing.js'
 import { showToast } from '../utils/toast.js'
+import MediaPreview from './MediaPreview.jsx'
 
 const OFFLINE_MESSAGE = 'אין חיבור לאינטרנט. יש להתחבר מחדש כדי לבצע פעולה זו.'
 
@@ -17,15 +18,20 @@ function InstagramPublishAction({ content, role, publishedMediaId, onPublished }
   const isEligible = role === 'ADMIN'
     && content.status === 'APPROVED'
     && Boolean(content.file_url)
-    && getMediaType(content.file_url, content.content_type) === 'image'
+    && ['image', 'video'].includes(getMediaType(content.file_url, content.content_type))
 
   useEffect(() => {
     if (!confirming || publishing) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setConfirming(false)
     }
     window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
   }, [confirming, publishing])
 
   if (!isEligible) return null
@@ -76,6 +82,11 @@ function InstagramPublishAction({ content, role, publishedMediaId, onPublished }
           <section className="modal-card instagram-confirmation" role="dialog" aria-modal="true" aria-labelledby={`instagram-confirm-title-${contentId}`} onMouseDown={(event) => event.stopPropagation()}>
             <button className="modal-close" type="button" onClick={() => setConfirming(false)} disabled={publishing} aria-label="סגירת חלון האישור"><X size={20} /></button>
             <h2 id={`instagram-confirm-title-${contentId}`}>פרסום אמיתי באינסטגרם</h2>
+            <MediaPreview
+              path={content.file_url}
+              type={content.content_type}
+              alt={content.title || 'תצוגה מקדימה לפרסום'}
+            />
             <p>הפעולה תפרסם פוסט אמיתי בחשבון האינסטגרם המחובר. לא ניתן לבטל את הפרסום מתוך המערכת.</p>
             <div className="modal-actions">
               <button type="button" className="ghost-button" onClick={() => setConfirming(false)} disabled={publishing}>ביטול</button>

@@ -85,16 +85,18 @@ public class FileStorageService {
             throw new IllegalArgumentException("Invalid file type");
         }
 
-        if (contentType.startsWith("image/")) {
+        if (contentType.startsWith("image/") || contentType.startsWith("video/")) {
             if (!cloudinaryStorageClient.isConfigured()) {
                 if (requireCloudinary) {
-                    throw new IOException("Production image storage is not configured");
+                    throw new IOException("Production media storage is not configured");
                 }
             } else {
                 try {
-                    return cloudinaryStorageClient.uploadImage(file.getBytes());
+                    return contentType.startsWith("video/")
+                            ? cloudinaryStorageClient.uploadVideo(file.getBytes())
+                            : cloudinaryStorageClient.uploadImage(file.getBytes());
                 } catch (IOException | RuntimeException exception) {
-                    throw new IOException("Could not upload image to Cloudinary", exception);
+                    throw new IOException("Could not upload media to Cloudinary", exception);
                 }
             }
         }

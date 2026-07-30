@@ -7,6 +7,8 @@ public class InstagramPublishException extends RuntimeException {
         CONTENT_NOT_APPROVED,
         IMAGE_REQUIRED,
         IMAGE_NOT_PUBLIC,
+        UNSUPPORTED_MEDIA,
+        MEDIA_PROCESSING_FAILED,
         META_API_FAILURE
     }
 

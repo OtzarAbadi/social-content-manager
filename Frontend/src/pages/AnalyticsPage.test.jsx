@@ -63,7 +63,7 @@ describe('AnalyticsPage', () => {
   it('shows unavailable instead of inventing zero', async () => {
     renderPage()
     await screen.findByText('1,234')
-    expect(screen.getAllByText('לא זמין').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('אין נתונים זמינים לתקופה שנבחרה.').length).toBeGreaterThan(0)
   })
   it('updates requests when media filter changes', async () => {
     renderPage(); await screen.findByText('1,234')
@@ -88,6 +88,20 @@ describe('AnalyticsPage', () => {
     view.unmount()
     renderPage()
     expect(await screen.findByRole('button', { name: 'ניסיון נוסף' })).toBeTruthy()
+  })
+  it('shows the safe backend configuration error instead of an empty state', async () => {
+    getInstagramAccountInsights.mockRejectedValue({
+      response: {
+        status: 503,
+        data: {
+          code: 'NOT_CONFIGURED',
+          message: 'Instagram Insights configuration is missing or invalid: Meta access token',
+        },
+      },
+    })
+    renderPage()
+    expect(await screen.findByText(/Meta access token/)).toBeTruthy()
+    expect(screen.queryByText('אין נתוני חשבון זמינים.')).toBeNull()
   })
   it('blocks CLIENT users without requesting insights', async () => {
     getAnalyticsProfile.mockResolvedValue({ role: 'CLIENT' })

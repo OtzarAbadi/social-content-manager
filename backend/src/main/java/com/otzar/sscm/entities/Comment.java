@@ -1,5 +1,7 @@
 package com.otzar.sscm.entities;
 
+import java.time.LocalDateTime;
+
 public class Comment {
 
     private Long commentId;
@@ -9,6 +11,7 @@ public class Comment {
     private Long userId;
 
     private String commentText;
+    private LocalDateTime createdAt;
 
     public Long getCommentId() { return commentId; }
     public void setCommentId(Long commentId) { this.commentId = commentId; }
@@ -21,4 +24,6 @@ public class Comment {
 
     public String getCommentText() { return commentText; }
     public void setCommentText(String commentText) { this.commentText = commentText; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

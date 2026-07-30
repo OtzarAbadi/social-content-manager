@@ -43,7 +43,8 @@ Instagram publishing requires:
 
 - `META_INSTAGRAM_USER_ID`
 - `META_PAGE_ACCESS_TOKEN`
-- `META_GRAPH_API_BASE_URL` (optional; defaults to `https://graph.facebook.com/v25.0`)
+- `META_GRAPH_API_BASE_URL` (preferred; defaults to `https://graph.facebook.com/v25.0`)
+- `META_GRAPH_API_BASE` (backward-compatible alias, used only when `META_GRAPH_API_BASE_URL` is absent)
 
 The access token is used only by the backend. Do not put it in frontend environment files.
 Only administrators can call `POST /api/contents/{contentId}/publish/instagram`, and the

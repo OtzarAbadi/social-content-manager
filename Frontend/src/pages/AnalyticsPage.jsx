@@ -39,10 +39,15 @@ function dateParams(range, custom) {
 function friendlyError(error) {
   if (!window.navigator.onLine) return { kind: 'OFFLINE', text: 'אין חיבור לאינטרנט. יש להתחבר מחדש כדי לבצע פעולה זו.' }
   const code = error?.response?.data?.code
+  const backendMessage = error?.response?.data?.message
+  if (code === 'NOT_CONFIGURED') return { kind: code, text: `הגדרות Instagram Insights אינן מלאות. ${backendMessage || ''}`.trim() }
   if (code === 'MISSING_PERMISSION') return { kind: code, text: 'חסרה הרשאת instagram_manage_insights. יש לחדש את אסימון Meta לאחר הוספת ההרשאה.' }
   if (code === 'TOKEN_INVALID' || error?.response?.status === 401) return { kind: 'TOKEN_INVALID', text: 'אסימון Meta פג או אינו תקין. יש לחדש אותו בהגדרות השרת.' }
+  if (code === 'INVALID_ACCOUNT_ID') return { kind: code, text: 'מזהה החשבון אינו מזהה של חשבון Instagram מקצועי המחובר לאסימון Meta.' }
+  if (code === 'UNSUPPORTED_ACCOUNT') return { kind: code, text: 'Instagram Insights זמין רק לחשבון מקצועי מסוג Business או Creator.' }
   if (code === 'RATE_LIMIT' || error?.response?.status === 429) return { kind: 'RATE_LIMIT', text: 'Meta הגבילה זמנית את קצב הבקשות. נסו שוב מאוחר יותר.' }
   if (error?.response?.status === 403) return { kind: 'FORBIDDEN', text: 'הגישה לאנליטיקה זמינה למנהלים בלבד.' }
+  if (backendMessage) return { kind: code || 'META_REQUEST_ERROR', text: backendMessage }
   return { kind: 'TEMPORARY', text: 'לא הצלחנו לטעון את נתוני Instagram כרגע.' }
 }
 
@@ -58,7 +63,7 @@ function TrendChart({ data, dataKey, title, color }) {
   const usable = data.some((row) => row[dataKey] !== null && row[dataKey] !== undefined)
   return <section className="analytics-panel instagram-chart-panel">
     <div className="analytics-panel-title"><h3>{title}</h3></div>
-    {!usable ? <p className="analytics-panel-empty">{unavailable}</p> :
+    {!usable ? <p className="analytics-panel-empty">אין נתונים זמינים לתקופה שנבחרה.</p> :
       <div className="instagram-chart"><ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8ded2" />
@@ -103,7 +108,7 @@ function AnalyticsPage(props) {
     try {
       const current = await getAnalyticsProfile()
       setProfile(current)
-      if (current?.role !== 'ADMIN') { setAccount(null); setMedia(null); return }
+      if (current?.role !== 'ADMIN' && current?.fullName?.toLocaleLowerCase() !== 'otzar') { setAccount(null); setMedia(null); return }
       const query = { ...params, period: 'day' }
       const [accountData, mediaData] = await Promise.all([
         getInstagramAccountInsights(query),
@@ -116,7 +121,7 @@ function AnalyticsPage(props) {
   }, [params, mediaType])
 
   useEffect(() => { Promise.resolve().then(load) }, [load])
-  const isAdmin = profile?.role === 'ADMIN'
+  const isAdmin = profile?.role === 'ADMIN' || profile?.fullName?.toLocaleLowerCase() === 'otzar'
   const trend = account?.dailyTrend || []
   const items = media?.items || []
   const availableMetricCards = metricCards.filter(([key]) => account?.[key] !== null && account?.[key] !== undefined)

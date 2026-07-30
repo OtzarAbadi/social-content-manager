@@ -29,38 +29,55 @@ public class InstagramInsightsService {
             "reach", "views", "profile_views", "accounts_engaged",
             "total_interactions", "follows_and_unfollows");
     private static final List<String> COMMON_MEDIA_METRICS = List.of(
-            "reach", "views", "saved", "shares", "total_interactions", "likes", "comments");
+            "reach", "saved", "shares", "total_interactions", "likes", "comments");
     private static final List<String> VIDEO_MEDIA_METRICS = List.of(
-            "average_watch_time", "video_view_total_time", "follows", "profile_activity");
+            "ig_reels_avg_watch_time", "ig_reels_video_view_total_time");
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String instagramUserId;
     private final String accessToken;
     private final String graphApiBaseUrl;
+    private final InstagramConnectionSettingsService connectionSettings;
 
     @Autowired
     public InstagramInsightsService(
             @Value("${META_INSTAGRAM_USER_ID:}") String instagramUserId,
             @Value("${META_PAGE_ACCESS_TOKEN:}") String accessToken,
-            @Value("${META_GRAPH_API_BASE_URL:https://graph.facebook.com/v25.0}") String graphApiBaseUrl) {
-        this(new RestTemplate(), new ObjectMapper(), instagramUserId, accessToken, graphApiBaseUrl);
+            @Value("${META_GRAPH_API_BASE_URL:${META_GRAPH_API_BASE:https://graph.facebook.com/v25.0}}") String graphApiBaseUrl,
+            InstagramConnectionSettingsService connectionSettings) {
+        this(new RestTemplate(), new ObjectMapper(), instagramUserId, accessToken, graphApiBaseUrl,
+                connectionSettings);
     }
 
     public InstagramInsightsService(RestTemplate restTemplate, ObjectMapper objectMapper,
                                     String instagramUserId, String accessToken, String graphApiBaseUrl) {
+        this(restTemplate, objectMapper, instagramUserId, accessToken, graphApiBaseUrl, null);
+    }
+
+    private InstagramInsightsService(RestTemplate restTemplate, ObjectMapper objectMapper,
+                                    String instagramUserId, String accessToken, String graphApiBaseUrl,
+                                    InstagramConnectionSettingsService connectionSettings) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.instagramUserId = clean(instagramUserId);
         this.accessToken = clean(accessToken);
         this.graphApiBaseUrl = clean(graphApiBaseUrl).replaceAll("/+$", "");
+        this.connectionSettings = connectionSettings;
     }
 
     public Map<String, Object> account(LocalDate since, LocalDate until, String period) {
         validate(since, until);
-        JsonNode basic = get(instagramUserId, Map.of("fields", "id,username"));
+        String configuredAccountId = currentInstagramUserId();
+        JsonNode basic = get(configuredAccountId, Map.of("fields", "id,username"));
+        String returnedAccountId = text(basic, "id");
+        if (!configuredAccountId.equals(returnedAccountId)) {
+            throw new InstagramInsightsException("INVALID_ACCOUNT_ID",
+                    "The configured ID is not the Instagram professional account returned by Meta",
+                    HttpStatus.BAD_REQUEST);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("instagramUserId", text(basic, "id"));
+        result.put("instagramUserId", returnedAccountId);
         result.put("username", text(basic, "username"));
         List<String> unavailable = new ArrayList<>();
         Map<String, String> optionalFields = new LinkedHashMap<>();
@@ -70,7 +87,7 @@ public class InstagramInsightsService {
         optionalFields.put("media_count", "mediaCount");
         for (Map.Entry<String, String> field : optionalFields.entrySet()) {
             try {
-                JsonNode fieldResponse = get(instagramUserId, Map.of("fields", field.getKey()));
+                JsonNode fieldResponse = get(currentInstagramUserId(), Map.of("fields", field.getKey()));
                 JsonNode value = fieldResponse.get(field.getKey());
                 result.put(field.getValue(), value == null || value.isNull() ? null
                         : value.isNumber() ? value.numberValue() : value.asText());
@@ -86,16 +103,30 @@ public class InstagramInsightsService {
         List<Map<String, Object>> trend = new ArrayList<>();
         for (String metric : ACCOUNT_METRICS) {
             try {
-                JsonNode response = get(instagramUserId + "/insights", insightParams(metric, since, until, period));
+                Map<String, String> totalParams = insightParams(metric, since, until, period);
+                totalParams.put("metric_type", "total_value");
+                if ("follows_and_unfollows".equals(metric)) totalParams.put("breakdown", "follow_type");
+                JsonNode response = get(currentInstagramUserId() + "/insights", totalParams);
                 JsonNode item = response.path("data").path(0);
                 if ("follows_and_unfollows".equals(metric)) {
-                    JsonNode followerValue = item.path("values").path(0).path("value");
+                    JsonNode followerValue = item.path("total_value").path("breakdowns").path(0)
+                            .path("results").isArray()
+                            ? followerBreakdown(item.path("total_value").path("breakdowns").path(0).path("results"))
+                            : item.path("values").path(0).path("value");
                     values.put("follows", objectNumber(followerValue, "follows"));
                     values.put("unfollows", objectNumber(followerValue, "unfollows"));
                 } else {
                     values.put(metric, metricValue(item));
                 }
-                mergeTrend(trend, item.path("values"), metric);
+                try {
+                    Map<String, String> trendParams = insightParams(metric, since, until, period);
+                    trendParams.put("metric_type", "time_series");
+                    JsonNode trendItem = get(currentInstagramUserId() + "/insights", trendParams)
+                            .path("data").path(0);
+                    mergeTrend(trend, trendItem.path("values"), metric);
+                } catch (InstagramInsightsException trendException) {
+                    if (isFatal(trendException)) throw trendException;
+                }
             } catch (InstagramInsightsException exception) {
                 if (isFatal(exception)) throw exception;
                 unavailable.add(metric);
@@ -109,6 +140,18 @@ public class InstagramInsightsService {
         return result;
     }
 
+    private JsonNode followerBreakdown(JsonNode results) {
+        com.fasterxml.jackson.databind.node.ObjectNode value = objectMapper.createObjectNode();
+        for (JsonNode result : results) {
+            String dimension = result.path("dimension_values").path(0).asText("");
+            if ("FOLLOW".equalsIgnoreCase(dimension) || "follows".equalsIgnoreCase(dimension))
+                value.put("follows", result.path("value").asDouble());
+            if ("UNFOLLOW".equalsIgnoreCase(dimension) || "unfollows".equalsIgnoreCase(dimension))
+                value.put("unfollows", result.path("value").asDouble());
+        }
+        return value;
+    }
+
     public Map<String, Object> media(LocalDate since, LocalDate until, String mediaType,
                                      int limit, String after) {
         validate(since, until);
@@ -116,7 +159,7 @@ public class InstagramInsightsService {
         params.put("fields", "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count");
         params.put("limit", String.valueOf(Math.max(1, Math.min(limit, 100))));
         if (after != null && !after.isBlank()) params.put("after", after);
-        JsonNode response = get(instagramUserId + "/media", params);
+        JsonNode response = get(currentInstagramUserId() + "/media", params);
         List<Map<String, Object>> items = new ArrayList<>();
         for (JsonNode node : response.path("data")) {
             if (!inRange(node, since, until) || !matchesType(node, mediaType)) continue;
@@ -153,27 +196,30 @@ public class InstagramInsightsService {
         if ("VIDEO".equals(type) || "REELS".equals(product)) metrics.addAll(VIDEO_MEDIA_METRICS);
         List<String> unavailable = new ArrayList<>();
         Map<String, Number> values = new HashMap<>();
-        for (String metric : metrics) {
-            try {
-                values.put(metric, metricValue(get(text(node, "id") + "/insights",
-                        Map.of("metric", metric)).path("data").path(0)));
-            } catch (InstagramInsightsException exception) {
-                if (isFatal(exception)) throw exception;
-                unavailable.add(metric);
+        try {
+            JsonNode response = get(text(node, "id") + "/insights",
+                    Map.of("metric", String.join(",", metrics)));
+            for (JsonNode metricNode : response.path("data")) {
+                String metricName = text(metricNode, "name");
+                if (!metricName.isBlank()) values.put(metricName, metricValue(metricNode));
             }
+            for (String metric : metrics) if (!values.containsKey(metric)) unavailable.add(metric);
+        } catch (InstagramInsightsException exception) {
+            if (isFatal(exception)) throw exception;
+            unavailable.addAll(metrics);
         }
         Map<String, Object> result = baseMedia(node, unavailable);
         result.put("reach", values.get("reach"));
-        result.put("views", values.get("views"));
+        result.put("views", null);
         result.put("likes", values.containsKey("likes") ? values.get("likes") : number(node, "like_count"));
         result.put("comments", values.containsKey("comments") ? values.get("comments") : number(node, "comments_count"));
         result.put("saved", values.get("saved"));
         result.put("shares", values.get("shares"));
         result.put("totalInteractions", values.get("total_interactions"));
-        result.put("averageWatchTime", values.get("average_watch_time"));
-        result.put("videoViewTotalTime", values.get("video_view_total_time"));
-        result.put("follows", values.get("follows"));
-        result.put("profileActivity", values.get("profile_activity"));
+        result.put("averageWatchTime", values.get("ig_reels_avg_watch_time"));
+        result.put("videoViewTotalTime", values.get("ig_reels_video_view_total_time"));
+        result.put("follows", null);
+        result.put("profileActivity", null);
         result.put("engagementRate", percentage(values.get("total_interactions"), values.get("reach")));
         return result;
     }
@@ -189,14 +235,14 @@ public class InstagramInsightsService {
 
     private JsonNode get(String path, Map<String, String> params) {
         requireConfiguration();
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(graphApiBaseUrl)
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(currentGraphApiBaseUrl())
                 .pathSegment(path.split("/"));
         params.forEach(builder::queryParam);
         URI uri = builder.build().encode().toUri();
-        String safePath = uri.getPath();
+        String safePath = safeMetaPath(path);
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
+            headers.setBearerAuth(currentAccessToken());
             ResponseEntity<String> response = restTemplate.exchange(
                     uri, HttpMethod.GET, new HttpEntity<>(headers), String.class);
             logger.debug("Meta Insights request succeeded path={} status={}",
@@ -204,7 +250,9 @@ public class InstagramInsightsService {
             String body = response.getBody();
             return objectMapper.readTree(body == null ? "{}" : body);
         } catch (HttpStatusCodeException exception) {
-            throw mapMeta(safePath, exception);
+            boolean identityRequest = !path.contains("/")
+                    && "id,username".equals(params.get("fields"));
+            throw mapMeta(safePath, identityRequest, exception);
         } catch (RestClientException exception) {
             logger.warn("Meta Insights transport failure path={} type={}",
                     safePath, exception.getClass().getSimpleName());
@@ -218,21 +266,24 @@ public class InstagramInsightsService {
         }
     }
 
-    private InstagramInsightsException mapMeta(String safePath, HttpStatusCodeException exception) {
+    private InstagramInsightsException mapMeta(String safePath, boolean identityRequest,
+                                               HttpStatusCodeException exception) {
         int status = exception.getRawStatusCode();
         Integer code = null;
         Integer subcode = null;
+        String type = "";
         String message = "";
         try {
             JsonNode error = objectMapper.readTree(exception.getResponseBodyAsString()).path("error");
             code = error.path("code").isInt() ? error.path("code").intValue() : null;
             subcode = error.path("error_subcode").isInt() ? error.path("error_subcode").intValue() : null;
+            type = sanitizeMetaMessage(error.path("type").asText(""));
             message = sanitizeMetaMessage(error.path("message").asText(""));
         } catch (Exception ignored) {
             message = "unparseable Meta error";
         }
-        logger.warn("Meta Insights request failed path={} status={} metaCode={} metaSubcode={} message={}",
-                safePath, status, code, subcode, message);
+        logger.warn("Meta Insights request failed path={} status={} metaType={} metaCode={} metaSubcode={} message={}",
+                safePath, status, type, code, subcode, message);
 
         if (status >= 500)
             return new InstagramInsightsException("META_TEMPORARY",
@@ -249,6 +300,10 @@ public class InstagramInsightsService {
         if (Integer.valueOf(10).equals(code) || Integer.valueOf(200).equals(code))
             return new InstagramInsightsException("MISSING_PERMISSION",
                     "The instagram_manage_insights permission is required", HttpStatus.FORBIDDEN);
+        if (Integer.valueOf(100).equals(code) && identityRequest)
+            return new InstagramInsightsException("INVALID_ACCOUNT_ID",
+                    "Meta did not recognize the configured Instagram professional account ID",
+                    HttpStatus.BAD_REQUEST);
         if (Integer.valueOf(100).equals(code))
             return new InstagramInsightsException("UNSUPPORTED_METRIC",
                     "This Instagram metric or request parameter is unavailable", HttpStatus.BAD_REQUEST);
@@ -271,9 +326,31 @@ public class InstagramInsightsService {
     }
 
     private void requireConfiguration() {
-        if (instagramUserId.isEmpty() || accessToken.isEmpty())
+        boolean accountIdPresent = !currentInstagramUserId().isEmpty();
+        boolean tokenPresent = !currentAccessToken().isEmpty();
+        boolean graphUrlValid = currentGraphApiBaseUrl()
+                .matches("^https://graph\\.facebook\\.com/v[0-9]+\\.[0-9]+$");
+        logger.info("Instagram Insights configuration accountIdPresent={} tokenPresent={} graphUrlValid={}",
+                accountIdPresent, tokenPresent, graphUrlValid);
+        if (!accountIdPresent || !tokenPresent || !graphUrlValid)
             throw new InstagramInsightsException("NOT_CONFIGURED",
-                    "Instagram Insights is not configured", HttpStatus.SERVICE_UNAVAILABLE);
+                    configurationMessage(accountIdPresent, tokenPresent, graphUrlValid),
+                    HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    private String safeMetaPath(String path) {
+        if (path == null || path.isBlank()) return "/instagram";
+        if (path.endsWith("/insights")) return "/instagram/insights";
+        if (path.endsWith("/media")) return "/instagram/media";
+        return "/instagram/account";
+    }
+
+    private String configurationMessage(boolean accountIdPresent, boolean tokenPresent, boolean graphUrlValid) {
+        List<String> missing = new ArrayList<>();
+        if (!accountIdPresent) missing.add("Instagram professional account ID");
+        if (!tokenPresent) missing.add("Meta access token");
+        if (!graphUrlValid) missing.add("versioned Meta Graph API URL");
+        return "Instagram Insights configuration is missing or invalid: " + String.join(", ", missing);
     }
 
     private Map<String,String> insightParams(String metric, LocalDate since, LocalDate until, String period) {
@@ -337,11 +414,23 @@ public class InstagramInsightsService {
         return type.equals(filter);
     }
     private Double percentage(Number a,Number b){ return a==null||b==null||b.doubleValue()==0?null:a.doubleValue()/b.doubleValue()*100; }
-    private boolean isFatal(InstagramInsightsException e){ return Set.of("MISSING_PERMISSION","TOKEN_INVALID","RATE_LIMIT","META_TEMPORARY").contains(e.getCode()); }
+    private boolean isFatal(InstagramInsightsException e){ return Set.of(
+            "NOT_CONFIGURED", "INVALID_ACCOUNT_ID", "UNSUPPORTED_ACCOUNT",
+            "MISSING_PERMISSION", "TOKEN_INVALID", "RATE_LIMIT", "META_TEMPORARY"
+    ).contains(e.getCode()); }
     private String text(JsonNode n,String k){ return n.path(k).asText(""); }
     private String nullableText(JsonNode n,String k){ return n.hasNonNull(k)?n.get(k).asText():null; }
     private Number number(JsonNode n,String k){ return n.has(k)&&n.get(k).isNumber()?n.get(k).numberValue():null; }
     private Number objectNumber(JsonNode n,String k){ return n.isObject()&&n.path(k).isNumber()?n.path(k).numberValue():null; }
     private String camel(String s){ StringBuilder b=new StringBuilder(); boolean up=false; for(char c:s.toCharArray()){if(c=='_'){up=true;}else{b.append(up?Character.toUpperCase(c):c);up=false;}} return b.toString(); }
     private String clean(String s){ return s==null?"":s.trim(); }
+    private String currentInstagramUserId() {
+        return connectionSettings == null ? instagramUserId : clean(connectionSettings.instagramUserId());
+    }
+    private String currentGraphApiBaseUrl() {
+        return connectionSettings == null ? graphApiBaseUrl : clean(connectionSettings.graphApiBaseUrl()).replaceAll("/+$", "");
+    }
+    private String currentAccessToken() {
+        return connectionSettings == null ? accessToken : clean(connectionSettings.accessToken());
+    }
 }

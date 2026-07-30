@@ -100,7 +100,7 @@ class InstagramInsightsServiceTests {
                 "{\"error\":{\"code\":10,\"message\":\"Permission denied\"}}"));
         assertEquals("TOKEN_INVALID", failureCode(HttpStatus.BAD_REQUEST,
                 "{\"error\":{\"code\":190,\"message\":\"Invalid OAuth access token\"}}"));
-        assertEquals("UNSUPPORTED_METRIC", failureCode(HttpStatus.BAD_REQUEST,
+        assertEquals("INVALID_ACCOUNT_ID", failureCode(HttpStatus.BAD_REQUEST,
                 "{\"error\":{\"code\":100,\"message\":\"Invalid metric\"}}"));
         assertEquals("RATE_LIMIT", failureCode(HttpStatus.BAD_REQUEST,
                 "{\"error\":{\"code\":4,\"message\":\"Application request limit reached\"}}"));
@@ -112,7 +112,7 @@ class InstagramInsightsServiceTests {
 
     @Test
     void code100MentioningAccessTokenIsNotMislabelledAsExpiredToken() {
-        assertEquals("UNSUPPORTED_METRIC", failureCode(HttpStatus.BAD_REQUEST,
+        assertEquals("INVALID_ACCOUNT_ID", failureCode(HttpStatus.BAD_REQUEST,
                 "{\"error\":{\"code\":100,\"message\":\"The access token cannot query this unsupported metric\"}}"));
     }
 
@@ -157,6 +157,6 @@ class InstagramInsightsServiceTests {
                 () -> service(rest).account(null,null,"day")).getCode();
     }
     private InstagramInsightsService service(RestTemplate rest) {
-        return new InstagramInsightsService(rest,new ObjectMapper(),"ig-user","secret-token","https://graph.example/v25.0");
+        return new InstagramInsightsService(rest,new ObjectMapper(),"ig-user","secret-token","https://graph.facebook.com/v25.0");
     }
 }

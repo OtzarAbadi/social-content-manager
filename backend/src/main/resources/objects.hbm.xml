@@ -34,6 +34,7 @@
         <property name="file_url" column="file_url" type="string"/>
         <property name="content_type" column="content_type" type="string"/>
         <property name="plannedPublishDate" column="planned_publish_date" type="java.time.LocalDateTime"/>
+        <property name="createdAt" column="created_at" type="java.time.LocalDateTime" insert="false" update="false"/>
         <property name="status" column="status" not-null="true">
             <type name="org.hibernate.type.EnumType">
                 <param name="enumClass">com.otzar.sscm.entities.ContentStatus</param>
@@ -76,11 +77,21 @@
         <property name="contentId" column="content_id" type="long"/>
         <property name="userId" column="user_id" type="long"/>
         <property name="commentText" column="commentText" type="text"/>
+        <property name="createdAt" column="created_at" type="java.time.LocalDateTime" insert="false" update="false"/>
     </class>
 
     <class name="com.otzar.sscm.entities.Admin" table="admins">
         <id name="adminId" column="admin_id" type="long"><generator class="identity"/></id>
         <property name="userId" column="user_id" type="long" not-null="true"/>
+    </class>
+
+    <class name="com.otzar.sscm.entities.InstagramConnectionSettings" table="instagram_connection_settings">
+        <id name="settingsId" column="settings_id" type="long">
+            <generator class="identity"/>
+        </id>
+        <property name="instagramUserId" column="instagram_user_id" type="string" not-null="true"/>
+        <property name="graphApiBaseUrl" column="graph_api_base_url" type="string" not-null="true"/>
+        <property name="updatedAt" column="updated_at" type="java.time.LocalDateTime" not-null="true"/>
     </class>
 
     <class name="com.otzar.sscm.entities.Notification" table="notifications">

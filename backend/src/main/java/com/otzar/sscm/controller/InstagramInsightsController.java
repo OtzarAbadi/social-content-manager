@@ -51,7 +51,12 @@ public class InstagramInsightsController {
     private ResponseEntity<?> authorize(String token) {
         Optional<User> user=authService.findUserByToken(token);
         if(user.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse(false,"Authentication required"));
-        if(!authService.isAdmin(user.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiResponse(false,"Administrator access required"));
+        boolean otzarCustomer = authService.findClientForUser(user.get())
+                .map(client -> "Otzar".equalsIgnoreCase(client.getBusiness_name()))
+                .orElse(false);
+        if(!authService.isAdmin(user.get()) && !otzarCustomer)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse(false,"Instagram analytics belongs to the Otzar customer"));
         return null;
     }
 }
