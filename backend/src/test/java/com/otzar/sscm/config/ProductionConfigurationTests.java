@@ -37,6 +37,10 @@ class ProductionConfigurationTests {
         assertEquals("${SPRING_DATASOURCE_PASSWORD}", properties.getProperty("spring.datasource.password"));
         assertEquals("none", properties.getProperty("spring.jpa.hibernate.ddl-auto"));
         assertEquals("never", properties.getProperty("spring.sql.init.mode"));
+        assertEquals("true", properties.getProperty("spring.flyway.enabled"));
+        assertEquals("true", properties.getProperty("spring.flyway.baseline-on-migrate"));
+        assertEquals("0", properties.getProperty("spring.flyway.baseline-version"));
+        assertEquals("classpath:db/migration", properties.getProperty("spring.flyway.locations"));
     }
 
     @Test
