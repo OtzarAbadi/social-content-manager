@@ -100,8 +100,10 @@ JDBC. Keep the username and password in the separate datasource variables; do
 not embed credentials in the URL. Local development retains the existing local
 MySQL URL and credentials from the ignored `backend/.env`.
 
-No database migration or schema change is part of this deployment preparation.
-The existing Hibernate mapping behavior is unchanged.
+Flyway runs the versioned scripts in `backend/src/main/resources/db/migration`
+before the application accepts traffic. Existing databases are baselined at
+version `0`, and migrations must remain idempotent so older Railway databases
+can be upgraded safely. Hibernate schema creation remains disabled.
 
 ## Authentication and cross-domain cookies
 
