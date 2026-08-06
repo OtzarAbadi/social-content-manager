@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Activity, BarChart3, Bell, CalendarDays, FileText, LayoutDashboard,
-  LogOut, MessageCircle, Plug, Users,
+  Grid3X3, LogOut, MessageCircle, Plug, Users,
 } from 'lucide-react'
 import NotificationsMenu from './NotificationsMenu.jsx'
 import api from '../services/api.js'
@@ -11,6 +11,7 @@ const icons = {
   dashboard: <LayoutDashboard />, calendar: <CalendarDays />, contents: <FileText />,
   clients: <Users />, comments: <MessageCircle />, analytics: <BarChart3 />,
   notifications: <Bell />, activity: <Activity />, integrations: <Plug />, logout: <LogOut />,
+  feed: <Grid3X3 />,
 }
 
 const pageTitles = {
@@ -20,6 +21,7 @@ const pageTitles = {
   notifications: 'התראות',
   activity: 'מרכז הפעילות',
   integrations: 'אינטגרציות',
+  feed: 'פיד לאישור',
 }
 
 function initials(profile) {
@@ -73,6 +75,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
           <a className={`route-dashboard ${activeRoute === 'dashboard' ? 'active' : ''}`} href={routes.dashboard.path} onClick={(e) => navigate(e, 'dashboard')}><i>{icons.dashboard}</i><span>לוח בקרה</span></a>
           <a className={`route-calendar ${activeRoute === 'calendar' ? 'active' : ''}`} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
           <a className={`route-content ${activeRoute === 'content' ? 'active' : ''}`} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
+          <a className={`route-feed ${activeRoute === 'feed' ? 'active' : ''}`} href={routes.feed.path} onClick={(e) => navigate(e, 'feed')}><i>{icons.feed}</i><span>פיד</span></a>
           {isAdmin && <a className={`route-clients ${activeRoute === 'clients' ? 'active' : ''}`} href={routes.clients.path} onClick={(e) => navigate(e, 'clients')}><i>{icons.clients}</i><span>לקוחות</span></a>}
           <a className={`route-messages ${activeRoute === 'messages' ? 'active' : ''}`} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
           {canViewAnalytics && <a className={`route-analytics ${activeRoute === 'analytics' ? 'active' : ''}`} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
@@ -100,6 +103,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         <a data-route="dashboard" className={activeRoute === 'dashboard' ? 'active' : ''} href={routes.dashboard.path} onClick={(e) => navigate(e, 'dashboard')}><i>{icons.dashboard}</i><span>בית</span></a>
         <a data-route="calendar" className={activeRoute === 'calendar' ? 'active' : ''} href={routes.calendar.path} onClick={(e) => navigate(e, 'calendar')}><i>{icons.calendar}</i><span>לוח שנה</span></a>
         <a data-route="content" className={activeRoute === 'content' ? 'active' : ''} href={routes.content.path} onClick={(e) => navigate(e, 'content')}><i>{icons.contents}</i><span>תוכן</span></a>
+        <a data-route="feed" className={activeRoute === 'feed' ? 'active' : ''} href={routes.feed.path} onClick={(e) => navigate(e, 'feed')}><i>{icons.feed}</i><span>פיד</span></a>
         {isAdmin && <a data-route="clients" className={activeRoute === 'clients' ? 'active' : ''} href={routes.clients.path} onClick={(e) => navigate(e, 'clients')}><i>{icons.clients}</i><span>לקוחות</span></a>}
         <a data-route="messages" className={activeRoute === 'messages' ? 'active' : ''} href={routes.messages.path} onClick={(e) => navigate(e, 'messages')}><i>{icons.comments}</i><span>הודעות</span></a>
         {canViewAnalytics && <a data-route="analytics" className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}

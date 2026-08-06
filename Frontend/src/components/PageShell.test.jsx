@@ -8,7 +8,7 @@ vi.mock('./NotificationsMenu.jsx', () => ({ default: () => <button type="button"
 
 const routes = Object.fromEntries([
   'dashboard', 'calendar', 'content', 'clients', 'messages',
-  'analytics', 'notifications', 'activity', 'integrations',
+  'feed', 'analytics', 'notifications', 'activity', 'integrations',
 ].map((key) => [key, { path: `/${key}` }]))
 
 function renderShell(activeRoute = 'dashboard') {
@@ -71,5 +71,6 @@ describe('PageShell mobile navigation', () => {
     expect(within(navigation).getByText('אינטגרציות')).toBeTruthy()
     expect(within(navigation).getByText('התראות')).toBeTruthy()
     expect(within(navigation).getByText('פעילות')).toBeTruthy()
+    expect(within(navigation).getByText('פיד')).toBeTruthy()
   })
 })

@@ -13,6 +13,7 @@ const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage.jsx'))
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'))
 const ActivityPage = lazy(() => import('./pages/ActivityPage.jsx'))
 const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage.jsx'))
+const FeedPage = lazy(() => import('./pages/FeedPage.jsx'))
 
 const defaultRoute = 'login'
 
@@ -26,6 +27,11 @@ const routes = {
     path: '/content',
     label: 'תוכן',
     Component: DashboardPage,
+  },
+  feed: {
+    path: '/feed',
+    label: 'פיד',
+    Component: FeedPage,
   },
   clients: {
     path: '/clients',
