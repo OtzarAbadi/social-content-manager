@@ -33,6 +33,7 @@ export function getApiErrorMessage(error, fallback = 'הפעולה נכשלה. �
   if (!error.response) return 'לא ניתן להתחבר לשרת. בדקו את החיבור ונסו שוב.'
   if (error.response.status === 401) return 'ההתחברות פגה. יש להתחבר מחדש.'
   if (error.response.status === 403) return 'אין הרשאה לבצע את הפעולה הזו.'
+  if (error.response?.data?.code === 'CONTENT_SAVE_FAILED') return error.response.data.message
   if (error.response.status >= 500) return 'אירעה תקלה זמנית בשרת. אפשר לנסות שוב בעוד רגע.'
   return error.response?.data?.message || fallback
 }

@@ -8,12 +8,14 @@ import CaptionGenerator from '../components/CaptionGenerator.jsx'
 import PublishingRecommendation from '../components/PublishingRecommendation.jsx'
 import { getActivity } from '../api/activity.js'
 import api from '../services/api.js'
-import MediaPreview from '../components/MediaPreview.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import InstagramPublishAction from '../components/InstagramPublishAction.jsx'
 import CreationModal from '../components/CreationModal.jsx'
+import ContentMediaCarousel from '../components/ContentMediaCarousel.jsx'
+import SelectedMediaPreview from '../components/SelectedMediaPreview.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
+import { appendMediaFiles, legacyContentType, mediaAcceptForMode, MIXED_MEDIA_MODE, validateMediaSelection } from '../utils/contentMediaForm.js'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
@@ -28,6 +30,12 @@ const contentTypeOptions = [
   { value: 'VIDEO', label: 'וידאו' },
   { value: 'REEL', label: 'ריל' },
   { value: 'TEXT', label: 'טקסט' },
+]
+
+const createContentTypeOptions = [
+  ...contentTypeOptions.slice(0, 2),
+  { value: MIXED_MEDIA_MODE, label: 'תמונה + סרטון' },
+  ...contentTypeOptions.slice(2),
 ]
 
 const emptyClientForm = {
@@ -45,7 +53,9 @@ const emptyContentForm = {
   title: '',
   description: '',
   file: null,
+  files: [],
   content_type: 'IMAGE',
+  media_mode: 'IMAGE',
   status: 'DRAFT',
   plannedPublishDate: '',
 }
@@ -164,7 +174,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [editingContentId, setEditingContentId] = useState(null)
   const [clientDraft, setClientDraft] = useState(null)
   const [contentDraft, setContentDraft] = useState(null)
-  const [replacementMedia, setReplacementMedia] = useState(null)
+  const [replacementMedia, setReplacementMedia] = useState([])
 
   const [loading, setLoading] = useState({
     clients: true,
@@ -572,9 +582,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   function handleContentFormChange(event) {
     const { name, value, files } = event.target
 
+    if (name === 'files') {
+      const selected = Array.from(files || [])
+      const validationMessage = validateMediaSelection(contentForm.media_mode, selected, false)
+      if (validationMessage) {
+        setErrors((current) => ({ ...current, contents: validationMessage }))
+        return
+      }
+      setErrors((current) => ({ ...current, contents: '' }))
+    }
+
     setContentForm((current) => ({
       ...current,
-      [name]: name === 'file' ? files[0] || null : value,
+      [name]: name === 'files' ? Array.from(files || []) : name === 'file' ? files[0] || null : value,
+      ...(name === 'media_mode' ? {
+        files: value === 'TEXT' ? [] : current.files,
+        content_type: legacyContentType(value, value === 'TEXT' ? [] : current.files),
+      } : {}),
     }))
   }
 
@@ -583,18 +607,24 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     setSaving((current) => ({ ...current, content: true }))
     setErrors((current) => ({ ...current, contents: '' }))
 
+    const validationMessage = validateMediaSelection(contentForm.media_mode, contentForm.files)
+    if (validationMessage) {
+      setErrors((current) => ({ ...current, contents: validationMessage }))
+      setSaving((current) => ({ ...current, content: false }))
+      return
+    }
+
     const payload = new FormData()
     payload.append('clientId', contentForm.clientId)
     payload.append('title', contentForm.title)
     payload.append('description', contentForm.description)
-    payload.append('contentType', contentForm.content_type)
+    payload.append('contentType', legacyContentType(contentForm.media_mode, contentForm.files))
 
     if (contentForm.plannedPublishDate) {
       payload.append('plannedPublishDate', contentForm.plannedPublishDate)
     }
-    if (contentForm.file) {
-      payload.append('file', contentForm.file)
-    }
+    if (contentForm.files.length) appendMediaFiles(payload, contentForm.files)
+    else if (contentForm.file) payload.append('file', contentForm.file)
 
     try {
       await api.post('/contents', payload)
@@ -716,7 +746,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       content_type: content.content_type ?? 'IMAGE',
       plannedPublishDate: toInputDateTime(content.plannedPublishDate),
     })
-    setReplacementMedia(null)
+    setReplacementMedia([])
   }
 
   function handleContentDraftChange(event) {
@@ -744,21 +774,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     setErrors((current) => ({ ...current, contents: '' }))
 
     try {
-      if (replacementMedia) {
+      if (replacementMedia.length > 0) {
         const form = new FormData()
         form.append('clientId', payload.clientId)
         form.append('title', payload.title)
         form.append('description', payload.description || '')
-        form.append('contentType', replacementMedia.type.startsWith('video/') ? 'VIDEO' : 'IMAGE')
+        form.append('contentType', replacementMedia[0].type.startsWith('video/') ? 'VIDEO' : 'IMAGE')
         if (payload.plannedPublishDate) form.append('plannedPublishDate', payload.plannedPublishDate)
-        form.append('file', replacementMedia)
+        replacementMedia.forEach((file) => form.append('files', file))
         await api.put(`/contents/${contentId}`, form)
       } else {
         await api.put(`/contents/${contentId}`, payload)
       }
       setEditingContentId(null)
       setContentDraft(null)
-      setReplacementMedia(null)
+      setReplacementMedia([])
       await loadContents()
       showNotice(`תוכן #${contentId} עודכן`)
     } catch {
@@ -1499,21 +1529,40 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                               </label>
                               <div className="wide-field replace-media-field">
                                 <span>מדיה נוכחית</span>
-                                <MediaPreview
-                                  path={replacementMedia ? URL.createObjectURL(replacementMedia) : content.file_url}
-                                  type={replacementMedia
-                                    ? (replacementMedia.type.startsWith('video/') ? 'VIDEO' : 'IMAGE')
-                                    : content.content_type}
-                                  alt={content.title}
-                                />
+                                {replacementMedia.length > 0 ? (
+                                  <div className="selected-media-list">
+                                    {replacementMedia.map((file, index) => (
+                                      <div className="selected-media-item" key={`${file.name}-${file.lastModified}-${index}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', String(index))} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+                                        event.preventDefault()
+                                        const from = Number(event.dataTransfer.getData('text/plain'))
+                                        setReplacementMedia((current) => {
+                                          const files = [...current]
+                                          const [moved] = files.splice(from, 1)
+                                          files.splice(index, 0, moved)
+                                          return files
+                                        })
+                                      }}>
+                                        <SelectedMediaPreview file={file} alt={`${file.name}, פריט ${index + 1}`} />
+                                        <span>{index + 1}. {file.name}</span>
+                                        <button type="button" aria-label={`הסרת ${file.name}`} onClick={() => setReplacementMedia((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button>
+                                        <button type="button" disabled={index === 0} aria-label={`העברת ${file.name} למעלה`} onClick={() => setReplacementMedia((current) => current.map((item, itemIndex) => itemIndex === index - 1 ? current[index] : itemIndex === index ? current[index - 1] : item))}>↑</button>
+                                        <button type="button" disabled={index === replacementMedia.length - 1} aria-label={`העברת ${file.name} למטה`} onClick={() => setReplacementMedia((current) => current.map((item, itemIndex) => itemIndex === index ? current[index + 1] : itemIndex === index + 1 ? current[index] : item))}>↓</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <ContentMediaCarousel content={content} />
+                                )}
                                 <label>
                                   החלפת מדיה
                                   <input
                                     type="file"
+                                    multiple
                                     accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
-                                    onChange={(event) => setReplacementMedia(event.target.files?.[0] || null)}
+                                    onChange={(event) => setReplacementMedia(Array.from(event.target.files || []).slice(0, 10))}
                                   />
                                 </label>
+                                <small>{replacementMedia.length}/10 פריטים נבחרו. סדר הרשימה הוא סדר הקרוסלה.</small>
                                 <small>התוכן יעודכן רק לאחר שההעלאה תסתיים בהצלחה.</small>
                               </div>
                               <label className="wide-field">
@@ -1548,7 +1597,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                     : '-'}
                                 </span>
                               </div>
-                              {content.file_url && <MediaPreview path={content.file_url} type={content.content_type} alt={content.title} />}
+                              {(content.media?.length || content.file_url) && <ContentMediaCarousel media={content.media} fallbackUrl={content.file_url} fallbackType={content.content_type} alt={content.title} />}
                               {isAdmin && rejectionReason && (
                                 <aside className="rejection-reason" aria-label="סיבת דחייה">
                                   <strong>סיבת הדחייה</strong>
@@ -1679,11 +1728,11 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         <label>
                           סוג תוכן
                           <select
-                            name="content_type"
-                            value={contentForm.content_type}
+                            name="media_mode"
+                            value={contentForm.media_mode}
                             onChange={handleContentFormChange}
                           >
-                            {contentTypeOptions.map((type) => (
+                            {createContentTypeOptions.map((type) => (
                               <option value={type.value} key={type.value}>
                                 {type.label}
                               </option>
@@ -1712,12 +1761,22 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         <label>
                           קובץ תמונה או וידאו
                           <input
-                            name="file"
+                            name="files"
                             type="file"
-                            accept="image/*,video/*"
+                            accept={mediaAcceptForMode(contentForm.media_mode)}
+                            multiple
+                            disabled={contentForm.media_mode === 'TEXT'}
                             onChange={handleContentFormChange}
                           />
                         </label>
+                        <div className="wide-field carousel-file-list" aria-live="polite">
+                          <strong>{contentForm.files.length} / 10 פריטי מדיה</strong>
+                          {contentForm.files.map((file, index) => <div key={`${file.name}-${file.lastModified}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', String(index))} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+                            event.preventDefault(); const from=Number(event.dataTransfer.getData('text/plain')); setContentForm((current) => { const files=[...current.files]; const [moved]=files.splice(from,1); files.splice(index,0,moved); return {...current,files} })
+                          }}><SelectedMediaPreview file={file} alt={`${file.name}, פריט ${index + 1}`} /><span>{index + 1}. {file.name}</span><button type="button" aria-label={`הסרת ${file.name}`} onClick={() => setContentForm((current) => ({...current,files:current.files.filter((_,itemIndex)=>itemIndex!==index)}))}>×</button>
+                          <button type="button" aria-label={`הזזת ${file.name} אחורה`} disabled={index===0} onClick={() => setContentForm((current)=>{const files=[...current.files];[files[index-1],files[index]]=[files[index],files[index-1]];return {...current,files}})}>↑</button>
+                          <button type="button" aria-label={`הזזת ${file.name} קדימה`} disabled={index===contentForm.files.length-1} onClick={() => setContentForm((current)=>{const files=[...current.files];[files[index+1],files[index]]=[files[index],files[index+1]];return {...current,files}})}>↓</button></div>)}
+                        </div>
                         <label className="wide-field">
                           תיאור
                           <textarea

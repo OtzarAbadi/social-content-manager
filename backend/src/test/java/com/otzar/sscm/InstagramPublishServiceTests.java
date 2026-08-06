@@ -2,6 +2,7 @@ package com.otzar.sscm;
 
 import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
+import com.otzar.sscm.entities.ContentMedia;
 import com.otzar.sscm.models.InstagramPublishResponse;
 import com.otzar.sscm.service.ContentService;
 import com.otzar.sscm.service.InstagramPublishException;
@@ -13,6 +14,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,6 +23,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -83,6 +87,24 @@ class InstagramPublishServiceTests {
 
         assertEquals(InstagramPublishException.Reason.IMAGE_NOT_PUBLIC, exception.getReason());
     }
+
+    @Test
+    void publishesMixedCarouselChildrenInDisplayOrder() {
+        ContentService contentService=mock(ContentService.class); Content content=approvedImage();
+        ContentMedia image=media("https://cdn.example/first.jpg","IMAGE",0);
+        ContentMedia video=media("https://cdn.example/second.mp4","VIDEO",1); content.setMedia(List.of(image,video)); content.setContent_type("CAROUSEL");
+        when(contentService.findById(12L)).thenReturn(Optional.of(content));
+        RestTemplate restTemplate=new RestTemplate(); MockRestServiceServer server=MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("https://graph.example/v25.0/ig-user/media")).andExpect(content().string(containsString("image_url=https%3A%2F%2Fcdn.example%2Ffirst.jpg"))).andExpect(content().string(containsString("is_carousel_item=true"))).andRespond(withSuccess("{\"id\":\"child-image\"}",MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://graph.example/v25.0/ig-user/media")).andExpect(content().string(containsString("video_url=https%3A%2F%2Fcdn.example%2Fsecond.mp4"))).andRespond(withSuccess("{\"id\":\"child-video\"}",MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/child-video?fields=status_code"))).andExpect(method(HttpMethod.GET)).andRespond(withSuccess("{\"status_code\":\"FINISHED\"}",MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://graph.example/v25.0/ig-user/media")).andExpect(content().string(containsString("media_type=CAROUSEL"))).andExpect(content().string(containsString("children=child-image%2Cchild-video"))).andRespond(withSuccess("{\"id\":\"parent\"}",MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://graph.example/v25.0/ig-user/media_publish")).andRespond(withSuccess("{\"id\":\"published-carousel\"}",MediaType.APPLICATION_JSON));
+        InstagramPublishResponse result=new InstagramPublishService(contentService,restTemplate,"ig-user","secret-token","https://graph.example/v25.0").publish(12L);
+        assertEquals("published-carousel",result.getInstagramMediaId()); server.verify();
+    }
+
+    private ContentMedia media(String url,String type,int order){ContentMedia m=new ContentMedia();m.setMediaUrl(url);m.setMediaType(type);m.setDisplayOrder(order);return m;}
 
     private Content approvedImage() {
         Content content = new Content();

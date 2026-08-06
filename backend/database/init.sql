@@ -73,6 +73,21 @@ CREATE TABLE content_versions (
                                   INDEX idx_content_versions_history (content_id, version_number)
 );
 
+CREATE TABLE content_media (
+  media_id BIGINT AUTO_INCREMENT PRIMARY KEY, content_id INT NOT NULL,
+  media_url VARCHAR(2048) NOT NULL, media_type VARCHAR(20) NOT NULL,
+  display_order INT NOT NULL, thumbnail_url VARCHAR(2048), created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_content_media_order(content_id,display_order), INDEX idx_content_media_content(content_id),
+  FOREIGN KEY(content_id) REFERENCES contents(content_id)
+);
+CREATE TABLE content_version_media (
+  version_media_id BIGINT AUTO_INCREMENT PRIMARY KEY, content_version_id BIGINT NOT NULL,
+  media_url VARCHAR(2048) NOT NULL, media_type VARCHAR(20) NOT NULL,
+  display_order INT NOT NULL, thumbnail_url VARCHAR(2048),
+  UNIQUE KEY uk_version_media_order(content_version_id,display_order), INDEX idx_version_media_version(content_version_id),
+  FOREIGN KEY(content_version_id) REFERENCES content_versions(content_version_id)
+);
+
 CREATE TABLE comments (
                           comment_id INT AUTO_INCREMENT PRIMARY KEY,
                           content_id INT NOT NULL,

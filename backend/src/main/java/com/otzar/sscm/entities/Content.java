@@ -3,6 +3,9 @@ package com.otzar.sscm.entities;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Content {
 
@@ -20,6 +23,8 @@ public class Content {
     private ContentStatus status;
     private LocalDateTime plannedPublishDate;
     private LocalDateTime createdAt;
+    private List<ContentMedia> media = new ArrayList<>();
+    private boolean mediaProvided;
 
     public Long getContent_id() { return content_id; }
     public void setContent_id(Long content_id) { this.content_id = content_id; }
@@ -60,4 +65,7 @@ public class Content {
     public void setPlannedPublishDate(LocalDateTime plannedPublishDate) { this.plannedPublishDate = plannedPublishDate; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public List<ContentMedia> getMedia() { return media; }
+    public void setMedia(List<ContentMedia> media) { this.media = media == null ? new ArrayList<>() : media; this.mediaProvided = true; }
+    @JsonIgnore public boolean isMediaProvided() { return mediaProvided; }
 }

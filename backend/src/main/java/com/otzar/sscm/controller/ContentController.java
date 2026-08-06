@@ -4,6 +4,7 @@ import com.otzar.sscm.entities.Content;
 import com.otzar.sscm.entities.ContentStatus;
 import com.otzar.sscm.entities.User;
 import com.otzar.sscm.entities.NotificationType;
+import com.otzar.sscm.entities.ContentMedia;
 import com.otzar.sscm.models.ApiResponse;
 import com.otzar.sscm.models.CreateContentMultipartRequest;
 import com.otzar.sscm.models.ContentVersionResponse;
@@ -241,10 +242,10 @@ public class ContentController {
     public ResponseEntity<?> addContentWithFile(
             @Valid @ModelAttribute CreateContentMultipartRequest request,
             @CookieValue(value = "token", required = false) String token) {
-        logger.info("Create content multipart request: clientId={}, titlePresent={}, filePresent={}",
+        logger.info("Create content multipart request: clientId={}, titlePresent={}, mediaFileCount={}",
                 request.getClientId(),
                 request.getTitle() != null && !request.getTitle().trim().isEmpty(),
-                request.getFile() != null && !request.getFile().isEmpty());
+                request.allFiles().size());
 
         Optional<User> currentUser = authService.findUserByToken(token);
         if (currentUser.isEmpty()) {
@@ -268,7 +269,25 @@ public class ContentController {
         content.setPlannedPublishDate(request.getPlannedPublishDate());
 
         try {
-            content.setFile_url(fileStorageService.store(request.getFile()));
+            List<org.springframework.web.multipart.MultipartFile> files = request.allFiles();
+            for (int index = 0; index < files.size(); index++) {
+                String contentType = files.get(index).getContentType();
+                logger.info("Create content media part: index={}, detectedType={}", index,
+                        contentType != null && contentType.startsWith("video/") ? "VIDEO" : "IMAGE");
+            }
+            List<String> urls = fileStorageService.storeAll(files);
+            logger.info("Create content media upload completed: receivedCount={}, uploadedCount={}",
+                    files.size(), urls.size());
+            if (!urls.isEmpty()) {
+                List<ContentMedia> media = new java.util.ArrayList<>();
+                for (int index=0; index<urls.size(); index++) {
+                    ContentMedia item=new ContentMedia(); item.setMediaUrl(urls.get(index));
+                    String mime=files.get(index).getContentType(); item.setMediaType(mime!=null&&mime.startsWith("video/")?"VIDEO":"IMAGE");
+                    item.setDisplayOrder(index); media.add(item);
+                }
+                content.setMedia(media); content.setFile_url(urls.get(0));
+                content.setContent_type(media.get(0).getMediaType());
+            }
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(new ApiResponse(false, ex.getMessage()));
         } catch (IOException ex) {
@@ -357,7 +376,14 @@ public class ContentController {
         update.setPlannedPublishDate(request.getPlannedPublishDate());
         try {
             // The persisted content is untouched unless the replacement upload completes.
-            update.setFile_url(fileStorageService.store(request.getFile()));
+            List<org.springframework.web.multipart.MultipartFile> files = request.allFiles();
+            List<String> urls = fileStorageService.storeAll(files);
+            if (!urls.isEmpty()) {
+                List<ContentMedia> media=new java.util.ArrayList<>();
+                for(int index=0;index<urls.size();index++) { ContentMedia item=new ContentMedia(); item.setMediaUrl(urls.get(index));
+                    String mime=files.get(index).getContentType(); item.setMediaType(mime!=null&&mime.startsWith("video/")?"VIDEO":"IMAGE"); item.setDisplayOrder(index); media.add(item); }
+                update.setMedia(media); update.setFile_url(urls.get(0)); update.setContent_type(media.get(0).getMediaType());
+            }
             ContentOperationResult result = contentService.update(id, update, currentUser.get().getUser_id());
             if (!result.isSuccess()) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(result.getContent());

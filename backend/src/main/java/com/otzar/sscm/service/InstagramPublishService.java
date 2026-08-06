@@ -20,6 +20,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import com.otzar.sscm.entities.ContentMedia;
 
 @Service
 public class InstagramPublishService {
@@ -64,6 +67,8 @@ public class InstagramPublishService {
                         InstagramPublishException.Reason.CONTENT_NOT_FOUND, "Content not found"));
         validateContent(content);
 
+        if (content.getMedia() != null && content.getMedia().size() > 1) return publishCarousel(content);
+
         boolean video = isVideo(content);
         MultiValueMap<String, String> container = form(
                 video ? "video_url" : "image_url", content.getFile_url(),
@@ -73,6 +78,32 @@ public class InstagramPublishService {
         if (video) waitUntilReady(creationId);
         String mediaId = postForId("media_publish", form(
                 "creation_id", creationId));
+        return new InstagramPublishResponse(true, mediaId);
+    }
+
+    private InstagramPublishResponse publishCarousel(Content content) {
+        List<ContentMedia> items = content.getMedia();
+        if (items.size() < 2 || items.size() > 10)
+            throw new InstagramPublishException(InstagramPublishException.Reason.UNSUPPORTED_MEDIA,
+                    "Instagram carousels require between 2 and 10 media items");
+        List<String> children = new ArrayList<>();
+        for (ContentMedia item : items) {
+            boolean video = "VIDEO".equalsIgnoreCase(item.getMediaType());
+            if (!video && !"IMAGE".equalsIgnoreCase(item.getMediaType()))
+                throw new InstagramPublishException(InstagramPublishException.Reason.UNSUPPORTED_MEDIA, "Unsupported carousel media type");
+            if (!isPublicHttpsUrl(item.getMediaUrl()))
+                throw new InstagramPublishException(InstagramPublishException.Reason.IMAGE_NOT_PUBLIC, "Carousel media must have a public HTTPS URL");
+            MultiValueMap<String,String> child = form(video ? "video_url" : "image_url", item.getMediaUrl(),
+                    "is_carousel_item", "true");
+            if (video) child.add("media_type", "VIDEO");
+            String childId = postForId("media", child);
+            if (video) waitUntilReady(childId);
+            children.add(childId);
+        }
+        MultiValueMap<String,String> parent = form("media_type", "CAROUSEL", "children", String.join(",",children),
+                "caption", content.getDescription()==null?"":content.getDescription());
+        String parentId = postForId("media", parent);
+        String mediaId = postForId("media_publish", form("creation_id", parentId));
         return new InstagramPublishResponse(true, mediaId);
     }
 
@@ -147,18 +178,19 @@ public class InstagramPublishService {
                     InstagramPublishException.Reason.CONTENT_NOT_APPROVED,
                     "Only approved content can be published to Instagram");
         }
-        if (content.getFile_url() == null || content.getFile_url().trim().isEmpty()) {
+        boolean carousel = content.getMedia()!=null && content.getMedia().size()>1;
+        if (!carousel && (content.getFile_url() == null || content.getFile_url().trim().isEmpty())) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.IMAGE_REQUIRED,
                     "Media is required for Instagram publishing");
         }
         String type = content.getContent_type() == null ? "" : content.getContent_type().toUpperCase();
-        if (!type.equals("IMAGE") && !type.equals("VIDEO") && !type.equals("REEL")) {
+        if (!carousel && !type.equals("IMAGE") && !type.equals("VIDEO") && !type.equals("REEL")) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.UNSUPPORTED_MEDIA,
                     "Only images, videos, and reels can be published");
         }
-        if (!isPublicHttpsUrl(content.getFile_url())) {
+        if (!carousel && !isPublicHttpsUrl(content.getFile_url())) {
             throw new InstagramPublishException(
                     InstagramPublishException.Reason.IMAGE_NOT_PUBLIC,
                     "The image must have a public HTTPS URL");

@@ -7,6 +7,7 @@ import com.otzar.sscm.entities.ContentVersion;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.CommentRepository;
 import com.otzar.sscm.repository.ContentVersionRepository;
+import com.otzar.sscm.repository.ContentMediaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,7 @@ class ContentVersionIntegrationTests {
     @Autowired private ClientRepository clientRepository;
     @Autowired private CommentRepository commentRepository;
     @Autowired private ContentVersionRepository contentVersionRepository;
+    @Autowired private ContentMediaRepository contentMediaRepository;
 
     private Cookie adminCookie;
     private Cookie clientCookie;
@@ -89,6 +91,110 @@ class ContentVersionIntegrationTests {
         org.junit.jupiter.api.Assertions.assertEquals(1, history.size());
         org.junit.jupiter.api.Assertions.assertEquals(1, history.get(0).getVersionNumber());
         org.junit.jupiter.api.Assertions.assertNotNull(history.get(0).getFileUrl());
+    }
+
+    @Test
+    void multipartCreationPersistsMultipleFilesInOrder() throws Exception {
+        MockMultipartFile first = new MockMultipartFile(
+                "files", "first.png", "image/png", new byte[]{1, 2, 3});
+        MockMultipartFile second = new MockMultipartFile(
+                "files", "second.jpg", "image/jpeg", new byte[]{4, 5, 6});
+
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(first)
+                        .file(second)
+                        .param("clientId", clientId.toString())
+                        .param("title", "Two image carousel")
+                        .param("description", "Ordered upload")
+                        .param("contentType", "IMAGE")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        Long contentId = responseId(result);
+        var media = contentMediaRepository.findByContentId(contentId);
+        org.junit.jupiter.api.Assertions.assertEquals(2, media.size());
+        org.junit.jupiter.api.Assertions.assertEquals(0, media.get(0).getDisplayOrder());
+        org.junit.jupiter.api.Assertions.assertEquals(1, media.get(1).getDisplayOrder());
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals("IMAGE", response.get("content_type").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(media.get(0).getMediaUrl(), response.get("file_url").asText());
+    }
+
+    @Test
+    void multipartCreationPersistsThreeImages() throws Exception {
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(new MockMultipartFile("files", "one.png", "image/png", new byte[]{1}))
+                        .file(new MockMultipartFile("files", "two.jpg", "image/jpeg", new byte[]{2}))
+                        .file(new MockMultipartFile("files", "three.webp", "image/webp", new byte[]{3}))
+                        .param("clientId", clientId.toString())
+                        .param("title", "Three image carousel")
+                        .param("contentType", "IMAGE")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var media = contentMediaRepository.findByContentId(responseId(result));
+        org.junit.jupiter.api.Assertions.assertEquals(3, media.size());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(0, 1, 2),
+                media.stream().map(item -> item.getDisplayOrder()).toList());
+    }
+
+    @Test
+    void multipartCreationPersistsMixedImageAndVideo() throws Exception {
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(new MockMultipartFile("files", "cover.png", "image/png", new byte[]{1}))
+                        .file(new MockMultipartFile("files", "clip.mp4", "video/mp4", new byte[]{2}))
+                        .param("clientId", clientId.toString())
+                        .param("title", "Mixed carousel")
+                        .param("contentType", "IMAGE")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var media = contentMediaRepository.findByContentId(responseId(result));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("IMAGE", "VIDEO"),
+                media.stream().map(item -> item.getMediaType()).toList());
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals("IMAGE", response.get("content_type").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(media.get(0).getMediaUrl(), response.get("file_url").asText());
+    }
+
+    @Test
+    void multipartCreationPersistsTwoVideos() throws Exception {
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(new MockMultipartFile("files", "first.mp4", "video/mp4", new byte[]{1}))
+                        .file(new MockMultipartFile("files", "second.webm", "video/webm", new byte[]{2}))
+                        .param("clientId", clientId.toString())
+                        .param("title", "Two video carousel")
+                        .param("contentType", "VIDEO")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var media = contentMediaRepository.findByContentId(responseId(result));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("VIDEO", "VIDEO"),
+                media.stream().map(item -> item.getMediaType()).toList());
+    }
+
+    @Test
+    void multipartCreationPreservesVideoThenImageOrder() throws Exception {
+        MvcResult result = mockMvc.perform(multipart("/contents")
+                        .file(new MockMultipartFile("files", "first.mp4", "video/mp4", new byte[]{1}))
+                        .file(new MockMultipartFile("files", "second.png", "image/png", new byte[]{2}))
+                        .param("clientId", clientId.toString())
+                        .param("title", "Video first mixed carousel")
+                        .param("contentType", "VIDEO")
+                        .cookie(adminCookie))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var media = contentMediaRepository.findByContentId(responseId(result));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("VIDEO", "IMAGE"),
+                media.stream().map(item -> item.getMediaType()).toList());
+        JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals("VIDEO", response.get("content_type").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(media.get(0).getMediaUrl(), response.get("file_url").asText());
     }
 
     @Test

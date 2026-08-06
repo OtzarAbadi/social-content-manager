@@ -69,6 +69,23 @@
             </type>
         </property>
     </class>
+    <class name="com.otzar.sscm.entities.ContentMedia" table="content_media">
+        <id name="mediaId" column="media_id" type="long"><generator class="identity"/></id>
+        <property name="contentId" column="content_id" type="long" not-null="true" unique-key="uk_content_media_order"/>
+        <property name="mediaUrl" column="media_url" type="string" not-null="true"/>
+        <property name="mediaType" column="media_type" type="string" not-null="true"/>
+        <property name="displayOrder" column="display_order" type="integer" not-null="true" unique-key="uk_content_media_order"/>
+        <property name="thumbnailUrl" column="thumbnail_url" type="string"/>
+        <property name="createdAt" column="created_at" type="java.time.LocalDateTime" insert="false" update="false"/>
+    </class>
+    <class name="com.otzar.sscm.entities.ContentVersionMedia" table="content_version_media" mutable="false">
+        <id name="versionMediaId" column="version_media_id" type="long"><generator class="identity"/></id>
+        <property name="contentVersionId" column="content_version_id" type="long" not-null="true" unique-key="uk_version_media_order"/>
+        <property name="mediaUrl" column="media_url" type="string" not-null="true"/>
+        <property name="mediaType" column="media_type" type="string" not-null="true"/>
+        <property name="displayOrder" column="display_order" type="integer" not-null="true" unique-key="uk_version_media_order"/>
+        <property name="thumbnailUrl" column="thumbnail_url" type="string"/>
+    </class>
 
     <class name="com.otzar.sscm.entities.Comment" table="comments">
         <id name="commentId" column="comment_id" type="long">

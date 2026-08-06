@@ -1,6 +1,8 @@
 package com.otzar.sscm.entities;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ContentVersion {
 
@@ -16,6 +18,7 @@ public class ContentVersion {
     private Long changedByUserId;
     private LocalDateTime changedAt;
     private ContentVersionChangeType changeType;
+    private List<ContentVersionMedia> media = new ArrayList<>();
 
     public Long getContentVersionId() { return contentVersionId; }
     public void setContentVersionId(Long contentVersionId) { this.contentVersionId = contentVersionId; }
@@ -41,4 +44,5 @@ public class ContentVersion {
     public void setChangedAt(LocalDateTime changedAt) { this.changedAt = changedAt; }
     public ContentVersionChangeType getChangeType() { return changeType; }
     public void setChangeType(ContentVersionChangeType changeType) { this.changeType = changeType; }
+    public List<ContentVersionMedia> getMedia(){return media;} public void setMedia(List<ContentVersionMedia> v){media=v==null?new ArrayList<>():v;}
 }

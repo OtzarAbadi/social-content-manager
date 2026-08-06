@@ -14,6 +14,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class FileStorageService {
@@ -105,6 +107,14 @@ public class FileStorageService {
         Path destination = uploadDirectory.resolve(storedName).normalize();
         Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
         return "/uploads/" + storedName;
+    }
+
+    public List<String> storeAll(List<MultipartFile> files) throws IOException {
+        if (files == null || files.isEmpty()) return java.util.Collections.emptyList();
+        if (files.size() > 10) throw new IllegalArgumentException("Instagram carousels support at most 10 media items");
+        List<String> urls = new ArrayList<>();
+        for (MultipartFile file : files) urls.add(store(file));
+        return urls;
     }
 
     public Path getUploadDirectory() {

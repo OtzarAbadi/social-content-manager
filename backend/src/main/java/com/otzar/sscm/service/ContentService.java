@@ -9,6 +9,8 @@ import com.otzar.sscm.models.RestoreContentVersionResponse;
 import com.otzar.sscm.repository.ClientRepository;
 import com.otzar.sscm.repository.CommentRepository;
 import com.otzar.sscm.repository.ContentRepository;
+import com.otzar.sscm.repository.ContentMediaRepository;
+import com.otzar.sscm.entities.ContentMedia;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,23 +29,25 @@ public class ContentService {
     private final CommentRepository commentRepository;
     private final ContentVersionService contentVersionService;
     private final FileStorageService fileStorageService;
+    private final ContentMediaRepository contentMediaRepository;
 
     public ContentService(ContentRepository contentRepository, ClientRepository clientRepository,
                           CommentRepository commentRepository, ContentVersionService contentVersionService,
-                          FileStorageService fileStorageService) {
+                          FileStorageService fileStorageService, ContentMediaRepository contentMediaRepository) {
         this.contentRepository = contentRepository;
         this.clientRepository = clientRepository;
         this.commentRepository = commentRepository;
         this.contentVersionService = contentVersionService;
         this.fileStorageService = fileStorageService;
+        this.contentMediaRepository = contentMediaRepository;
     }
 
     public List<Content> findAll() {
-        return contentRepository.findAll();
+        return enrich(contentRepository.findAll());
     }
 
     public List<Content> findByClientId(Long clientId) {
-        return contentRepository.findByClientId(clientId);
+        return enrich(contentRepository.findByClientId(clientId));
     }
 
     public Optional<List<Content>> findByClientIdIfClientExists(Long clientId) {
@@ -51,19 +55,19 @@ public class ContentService {
             return Optional.empty();
         }
 
-        return Optional.of(contentRepository.findByClientId(clientId));
+        return Optional.of(enrich(contentRepository.findByClientId(clientId)));
     }
 
     public List<Content> findByStatus(ContentStatus status) {
-        return contentRepository.findByStatus(status);
+        return enrich(contentRepository.findByStatus(status));
     }
 
     public List<Content> findByClientIdAndStatus(Long clientId, ContentStatus status) {
-        return contentRepository.findByClientIdAndStatus(clientId, status);
+        return enrich(contentRepository.findByClientIdAndStatus(clientId, status));
     }
 
     public Optional<Content> findById(Long id) {
-        return contentRepository.findById(id);
+        return contentRepository.findById(id).map(this::enrich);
     }
 
     @Transactional
@@ -89,11 +93,15 @@ public class ContentService {
         if (!fileStorageService.isManagedUploadAvailable(source.getFileUrl())) {
             throw new IllegalStateException("Historical media file is unavailable");
         }
+        for (com.otzar.sscm.entities.ContentVersionMedia media : source.getMedia())
+            if (!fileStorageService.isManagedUploadAvailable(media.getMediaUrl()))
+                throw new IllegalStateException("Historical media file is unavailable");
 
         boolean changed = !java.util.Objects.equals(content.getTitle(), source.getTitle())
                 || !java.util.Objects.equals(content.getDescription(), source.getDescription())
                 || !java.util.Objects.equals(content.getContent_type(), source.getContentType())
-                || !java.util.Objects.equals(content.getFile_url(), source.getFileUrl());
+                || !java.util.Objects.equals(content.getFile_url(), source.getFileUrl())
+                || !sameVersionMedia(contentMediaRepository.findByContentId(contentId), source.getMedia());
         if (!changed) {
             return RestoreContentVersionResult.success(new RestoreContentVersionResponse(
                     content, versionNumber, null, false));
@@ -104,6 +112,14 @@ public class ContentService {
         content.setContent_type(source.getContentType());
         content.setFile_url(source.getFileUrl());
         Content restored = contentRepository.save(content);
+        if (!source.getMedia().isEmpty()) {
+            List<ContentMedia> restoredMedia = new java.util.ArrayList<>();
+            for (com.otzar.sscm.entities.ContentVersionMedia old : source.getMedia()) {
+                ContentMedia media=new ContentMedia(); media.setMediaUrl(old.getMediaUrl()); media.setMediaType(old.getMediaType());
+                media.setDisplayOrder(old.getDisplayOrder()); media.setThumbnailUrl(old.getThumbnailUrl()); restoredMedia.add(media);
+            }
+            replaceMedia(restored, restoredMedia);
+        } else contentMediaRepository.deleteByContentId(contentId);
         ContentVersion newVersion = contentVersionService.createSnapshot(
                 restored, changedByUserId, ContentVersionChangeType.EDITED);
         return RestoreContentVersionResult.success(new RestoreContentVersionResponse(
@@ -129,8 +145,14 @@ public class ContentService {
             throw new IllegalStateException("Content must be created as draft");
         }
 
+        validateMedia(content.getMedia(), content.isMediaProvided());
+        if (content.isMediaProvided() && !content.getMedia().isEmpty()) {
+            content.setFile_url(content.getMedia().get(0).getMediaUrl());
+            content.setContent_type(content.getMedia().get(0).getMediaType());
+        }
         content.setStatus(ContentStatus.DRAFT);
         Content created = contentRepository.save(content);
+        if (content.isMediaProvided()) replaceMedia(created, content.getMedia());
         contentVersionService.createSnapshot(created, changedByUserId, ContentVersionChangeType.CREATED);
         return ContentOperationResult.success(created);
     }
@@ -153,14 +175,24 @@ public class ContentService {
         }
 
         Content content = existingContent.get();
+        List<ContentMedia> requestedMedia = request.getMedia();
+        validateMedia(requestedMedia, request.isMediaProvided());
         ContentVersionService.ContentState before = contentVersionService.capture(content);
         applyRequest(content, request);
 
-        if (!contentVersionService.hasMeaningfulChanges(before, content)) {
+        if (!contentVersionService.hasMeaningfulChanges(before, content) && !request.isMediaProvided()) {
             return ContentOperationResult.success(content);
         }
 
         Content updated = contentRepository.save(content);
+        if (request.isMediaProvided()) {
+            replaceMedia(updated, requestedMedia);
+            if (!requestedMedia.isEmpty()) {
+                updated.setFile_url(requestedMedia.get(0).getMediaUrl());
+                updated.setContent_type(requestedMedia.get(0).getMediaType());
+                contentRepository.save(updated);
+            }
+        }
         contentVersionService.createSnapshot(updated, changedByUserId, ContentVersionChangeType.EDITED);
         return ContentOperationResult.success(updated);
     }
@@ -344,6 +376,39 @@ public class ContentService {
         if (request.getPlannedPublishDate() != null) {
             content.setPlannedPublishDate(request.getPlannedPublishDate());
         }
+    }
+
+    private Content enrich(Content content) {
+        content.setMedia(contentMediaRepository.findByContentId(content.getContent_id()));
+        return content;
+    }
+    private List<Content> enrich(List<Content> contents) { contents.forEach(this::enrich); return contents; }
+    private void validateMedia(List<ContentMedia> media, boolean provided) {
+        if (!provided) return;
+        if (media.size() > 10) throw new IllegalArgumentException("Instagram carousels support at most 10 media items");
+        java.util.Set<Integer> orders = new java.util.HashSet<>();
+        for (int i=0;i<media.size();i++) {
+            ContentMedia item=media.get(i);
+            if (item.getMediaUrl()==null || item.getMediaUrl().trim().isEmpty()) throw new IllegalArgumentException("Media URL is required");
+            String type=item.getMediaType()==null?"":item.getMediaType().toUpperCase();
+            if (!type.equals("IMAGE") && !type.equals("VIDEO")) throw new IllegalArgumentException("Media type must be IMAGE or VIDEO");
+            if (item.getDisplayOrder()==null) item.setDisplayOrder(i);
+            if (!orders.add(item.getDisplayOrder())) throw new IllegalArgumentException("Media display order must be unique");
+        }
+    }
+    private void replaceMedia(Content content, List<ContentMedia> media) {
+        contentMediaRepository.deleteByContentId(content.getContent_id());
+        for (ContentMedia item:media) { item.setMediaId(null); item.setContentId(content.getContent_id()); contentMediaRepository.save(item); }
+        content.setMedia(contentMediaRepository.findByContentId(content.getContent_id()));
+        logger.info("Content media persisted: contentId={}, requestedCount={}, persistedCount={}",
+                content.getContent_id(), media.size(), content.getMedia().size());
+    }
+    private boolean sameVersionMedia(List<ContentMedia> current, List<com.otzar.sscm.entities.ContentVersionMedia> old) {
+        if(current.size()!=old.size()) return false;
+        for(int i=0;i<current.size();i++) if(!java.util.Objects.equals(current.get(i).getMediaUrl(),old.get(i).getMediaUrl())
+                || !java.util.Objects.equals(current.get(i).getMediaType(),old.get(i).getMediaType())
+                || !java.util.Objects.equals(current.get(i).getDisplayOrder(),old.get(i).getDisplayOrder())) return false;
+        return true;
     }
 
     public static class ContentOperationResult {

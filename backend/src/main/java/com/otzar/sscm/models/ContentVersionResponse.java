@@ -5,6 +5,8 @@ import com.otzar.sscm.entities.ContentVersion;
 import com.otzar.sscm.entities.ContentVersionChangeType;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import com.otzar.sscm.entities.ContentVersionMedia;
 
 public class ContentVersionResponse {
 
@@ -20,6 +22,7 @@ public class ContentVersionResponse {
     private final Long changedByUserId;
     private final LocalDateTime changedAt;
     private final ContentVersionChangeType changeType;
+    private final List<ContentVersionMedia> media;
 
     public ContentVersionResponse(ContentVersion version) {
         this.contentVersionId = version.getContentVersionId();
@@ -34,6 +37,7 @@ public class ContentVersionResponse {
         this.changedByUserId = version.getChangedByUserId();
         this.changedAt = version.getChangedAt();
         this.changeType = version.getChangeType();
+        this.media = version.getMedia();
     }
 
     public Long getContentVersionId() { return contentVersionId; }
@@ -48,4 +52,5 @@ public class ContentVersionResponse {
     public Long getChangedByUserId() { return changedByUserId; }
     public LocalDateTime getChangedAt() { return changedAt; }
     public ContentVersionChangeType getChangeType() { return changeType; }
+    public List<ContentVersionMedia> getMedia(){return media;}
 }

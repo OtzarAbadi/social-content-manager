@@ -6,6 +6,8 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CreateContentMultipartRequest {
     @NotNull(message = "Client ID is required")
@@ -19,6 +21,7 @@ public class CreateContentMultipartRequest {
     private LocalDateTime plannedPublishDate;
 
     private MultipartFile file;
+    private List<MultipartFile> files = new ArrayList<>();
 
     public Long getClientId() {
         return clientId;
@@ -66,5 +69,10 @@ public class CreateContentMultipartRequest {
 
     public void setFile(MultipartFile file) {
         this.file = file;
+    }
+    public List<MultipartFile> getFiles(){return files;} public void setFiles(List<MultipartFile> files){this.files=files==null?new ArrayList<>():files;}
+    public List<MultipartFile> allFiles(){
+        List<MultipartFile> all=new ArrayList<>(); if(file!=null&&!file.isEmpty()) all.add(file);
+        for(MultipartFile item:files) if(item!=null&&!item.isEmpty()) all.add(item); return all;
     }
 }
