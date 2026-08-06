@@ -67,8 +67,8 @@ describe('PageShell mobile navigation', () => {
 
     await within(navigation).findByText('התראות')
     expect(within(navigation).queryByText('לקוחות')).toBeNull()
-    expect(within(navigation).queryByText('אנליטיקה')).toBeNull()
-    expect(within(navigation).queryByText('אינטגרציות')).toBeNull()
+    expect(within(navigation).getByText('אנליטיקה')).toBeTruthy()
+    expect(within(navigation).getByText('אינטגרציות')).toBeTruthy()
     expect(within(navigation).getByText('התראות')).toBeTruthy()
     expect(within(navigation).getByText('פעילות')).toBeTruthy()
   })

@@ -6,11 +6,12 @@ import {
   showAnalyticsValue as show,
 } from '../utils/analyticsFormat.js'
 import {
-  getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
+  getAnalyticsClients, getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
 } from '../api/analytics.js'
 
 vi.mock('../api/analytics.js', () => ({
   getAnalyticsProfile: vi.fn(),
+  getAnalyticsClients: vi.fn(),
   getInstagramAccountInsights: vi.fn(),
   getInstagramMediaInsights: vi.fn(),
 }))
@@ -28,6 +29,7 @@ const account = {
 }
 const item = {
   mediaId: 'm1', caption: 'פוסט אמיתי', mediaType: 'IMAGE', timestamp: '2026-07-27T10:00:00Z',
+  mediaUrl: 'https://cdn.example.com/instagram-media.jpg',
   reach: 74, views: 211, likes: 10, comments: 2, saved: 3, shares: 1, totalInteractions: 16,
   engagementRate: 21.62, permalink: 'https://instagram.com/p/example',
 }
@@ -35,7 +37,8 @@ const media = { items: [item], topByReach: item, topByViews: item, topByEngageme
 
 describe('AnalyticsPage', () => {
   beforeEach(() => {
-    getAnalyticsProfile.mockResolvedValue({ role: 'ADMIN' })
+    getAnalyticsProfile.mockResolvedValue({ role: 'CLIENT' })
+    getAnalyticsClients.mockResolvedValue([{ client_id: 1, business_name: 'Otzar' }])
     getInstagramAccountInsights.mockResolvedValue(account)
     getInstagramMediaInsights.mockResolvedValue(media)
   })
@@ -77,6 +80,11 @@ describe('AnalyticsPage', () => {
     expect(await screen.findByText('טוען נתוני Instagram Insights...')).toBeTruthy()
     resolve(account)
     expect((await screen.findAllByText('פוסט אמיתי')).length).toBeGreaterThan(0)
+    const previews = screen.getAllByAltText(/תצוגה מקדימה/)
+    expect(previews.every((preview) => preview.getAttribute('loading') === 'lazy')).toBe(true)
+    expect(previews.every((preview) => preview.getAttribute('decoding') === 'async')).toBe(true)
+    expect(previews.filter((preview) => preview.classList.contains('instagram-media-card')).length).toBe(3)
+    expect(previews.some((preview) => preview.classList.contains('instagram-media-thumbnail'))).toBe(true)
     expect(screen.getByLabelText('צפייה בפוסט באינסטגרם').getAttribute('rel')).toBe('noopener noreferrer')
   })
   it('renders permission error and retry for temporary failures', async () => {
@@ -103,10 +111,11 @@ describe('AnalyticsPage', () => {
     expect(await screen.findByText(/Meta access token/)).toBeTruthy()
     expect(screen.queryByText('אין נתוני חשבון זמינים.')).toBeNull()
   })
-  it('blocks CLIENT users without requesting insights', async () => {
+  it('loads CLIENT analytics without exposing a client selector', async () => {
     getAnalyticsProfile.mockResolvedValue({ role: 'CLIENT' })
     renderPage()
-    expect(await screen.findByText('הגישה לאנליטיקה זמינה למנהלים בלבד.')).toBeTruthy()
-    expect(getInstagramAccountInsights).not.toHaveBeenCalled()
+    expect(await screen.findByText('1,234')).toBeTruthy()
+    expect(screen.queryByLabelText('Client')).toBeNull()
+    expect(getInstagramAccountInsights).toHaveBeenCalledWith(expect.not.objectContaining({ clientId: expect.anything() }))
   })
 })

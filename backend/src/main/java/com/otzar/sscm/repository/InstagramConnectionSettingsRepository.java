@@ -23,6 +23,13 @@ public class InstagramConnectionSettingsRepository {
                 .uniqueResultOptional();
     }
 
+    public Optional<InstagramConnectionSettings> findByClientId(Long clientId) {
+        return persist.getQuerySession()
+                .createQuery("FROM InstagramConnectionSettings WHERE clientId = :clientId", InstagramConnectionSettings.class)
+                .setParameter("clientId", clientId)
+                .uniqueResultOptional();
+    }
+
     public InstagramConnectionSettings save(InstagramConnectionSettings settings) {
         persist.save(settings);
         return settings;

@@ -39,6 +39,7 @@ public class InstagramInsightsService {
     private final String accessToken;
     private final String graphApiBaseUrl;
     private final InstagramConnectionSettingsService connectionSettings;
+    private final ThreadLocal<Long> requestClientId = new ThreadLocal<>();
 
     @Autowired
     public InstagramInsightsService(
@@ -138,6 +139,12 @@ public class InstagramInsightsService {
         result.put("unavailableMetrics", unavailable);
         result.put("engagementRate", percentage(values.get("total_interactions"), values.get("reach")));
         return result;
+    }
+
+    public Map<String, Object> account(Long clientId, LocalDate since, LocalDate until, String period) {
+        requestClientId.set(clientId);
+        try { return account(since, until, period); }
+        finally { requestClientId.remove(); }
     }
 
     private JsonNode followerBreakdown(JsonNode results) {
@@ -338,6 +345,19 @@ public class InstagramInsightsService {
                     HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    public Map<String, Object> oneMedia(Long clientId, String mediaId) {
+        requestClientId.set(clientId);
+        try { return oneMedia(mediaId); }
+        finally { requestClientId.remove(); }
+    }
+
+    public Map<String, Object> media(Long clientId, LocalDate since, LocalDate until, String mediaType,
+                                     int limit, String after) {
+        requestClientId.set(clientId);
+        try { return media(since, until, mediaType, limit, after); }
+        finally { requestClientId.remove(); }
+    }
+
     private String safeMetaPath(String path) {
         if (path == null || path.isBlank()) return "/instagram";
         if (path.endsWith("/insights")) return "/instagram/insights";
@@ -425,10 +445,14 @@ public class InstagramInsightsService {
     private String camel(String s){ StringBuilder b=new StringBuilder(); boolean up=false; for(char c:s.toCharArray()){if(c=='_'){up=true;}else{b.append(up?Character.toUpperCase(c):c);up=false;}} return b.toString(); }
     private String clean(String s){ return s==null?"":s.trim(); }
     private String currentInstagramUserId() {
-        return connectionSettings == null ? instagramUserId : clean(connectionSettings.instagramUserId());
+        if (connectionSettings == null) return instagramUserId;
+        Long clientId = requestClientId.get();
+        return clean(clientId == null ? connectionSettings.instagramUserId() : connectionSettings.instagramUserId(clientId));
     }
     private String currentGraphApiBaseUrl() {
-        return connectionSettings == null ? graphApiBaseUrl : clean(connectionSettings.graphApiBaseUrl()).replaceAll("/+$", "");
+        if (connectionSettings == null) return graphApiBaseUrl;
+        Long clientId = requestClientId.get();
+        return clean(clientId == null ? connectionSettings.graphApiBaseUrl() : connectionSettings.graphApiBaseUrl(clientId)).replaceAll("/+$", "");
     }
     private String currentAccessToken() {
         return connectionSettings == null ? accessToken : clean(connectionSettings.accessToken());

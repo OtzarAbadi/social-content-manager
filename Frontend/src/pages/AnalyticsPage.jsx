@@ -10,7 +10,7 @@ import {
   unavailableAnalyticsValue as unavailable,
 } from '../utils/analyticsFormat.js'
 import {
-  getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
+  getAnalyticsClients, getAnalyticsProfile, getInstagramAccountInsights, getInstagramMediaInsights,
 } from '../api/analytics.js'
 
 const ranges = {
@@ -40,6 +40,7 @@ function friendlyError(error) {
   if (!window.navigator.onLine) return { kind: 'OFFLINE', text: 'אין חיבור לאינטרנט. יש להתחבר מחדש כדי לבצע פעולה זו.' }
   const code = error?.response?.data?.code
   const backendMessage = error?.response?.data?.message
+  if (code === 'INSTAGRAM_NOT_CONNECTED') return { kind: code, text: 'Instagram account is not connected for this client.' }
   if (code === 'NOT_CONFIGURED') return { kind: code, text: `הגדרות Instagram Insights אינן מלאות. ${backendMessage || ''}`.trim() }
   if (code === 'MISSING_PERMISSION') return { kind: code, text: 'חסרה הרשאת instagram_manage_insights. יש לחדש את אסימון Meta לאחר הוספת ההרשאה.' }
   if (code === 'TOKEN_INVALID' || error?.response?.status === 401) return { kind: 'TOKEN_INVALID', text: 'אסימון Meta פג או אינו תקין. יש לחדש אותו בהגדרות השרת.' }
@@ -51,12 +52,12 @@ function friendlyError(error) {
   return { kind: 'TEMPORARY', text: 'לא הצלחנו לטעון את נתוני Instagram כרגע.' }
 }
 
-function Preview({ item }) {
+function Preview({ item, variant = 'thumbnail' }) {
   const [failed, setFailed] = useState(false)
   const source = item.thumbnailUrl || item.mediaUrl
   return source && !failed
-    ? <img className="instagram-media-thumb" src={source} alt={`תצוגה מקדימה: ${item.caption || 'תוכן Instagram'}`} loading="lazy" onError={() => setFailed(true)} />
-    : <span className="instagram-media-fallback" role="img" aria-label="תצוגה מקדימה אינה זמינה"><ImageOff size={20} aria-hidden="true" /></span>
+    ? <img className={`instagram-media-thumb instagram-media-${variant}`} src={source} alt={`תצוגה מקדימה: ${item.caption || 'תוכן Instagram'}`} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    : <span className={`instagram-media-fallback instagram-media-${variant}`} role="img" aria-label="תצוגה מקדימה אינה זמינה"><ImageOff size={20} aria-hidden="true" /></span>
 }
 
 function TrendChart({ data, dataKey, title, color }) {
@@ -82,7 +83,7 @@ function TrendChart({ data, dataKey, title, color }) {
 function TopCard({ title, item }) {
   return <article className="instagram-top-card">
     <h3>{title}</h3>
-    {!item ? <p>{unavailable}</p> : <><Preview item={item} /><strong>{item.caption || 'ללא כיתוב'}</strong></>}
+    {!item ? <p>{unavailable}</p> : <><Preview item={item} variant="card" /><strong>{item.caption || 'ללא כיתוב'}</strong></>}
   </article>
 }
 
@@ -94,6 +95,8 @@ function topItem(items, key) {
 
 function AnalyticsPage(props) {
   const [profile, setProfile] = useState(null)
+  const [clients, setClients] = useState([])
+  const [selectedClientId, setSelectedClientId] = useState('')
   const [account, setAccount] = useState(null)
   const [media, setMedia] = useState(null)
   const [range, setRange] = useState('7')
@@ -106,10 +109,11 @@ function AnalyticsPage(props) {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const current = await getAnalyticsProfile()
+      const current = profile || await getAnalyticsProfile()
       setProfile(current)
-      if (current?.role !== 'ADMIN' && current?.fullName?.toLocaleLowerCase() !== 'otzar') { setAccount(null); setMedia(null); return }
-      const query = { ...params, period: 'day' }
+      if (current?.role === 'ADMIN' && clients.length === 0) setClients(await getAnalyticsClients())
+      if (current?.role === 'ADMIN' && !selectedClientId) { setAccount(null); setMedia(null); return }
+      const query = { ...params, period: 'day', ...(current?.role === 'ADMIN' ? { clientId: selectedClientId } : {}) }
       const [accountData, mediaData] = await Promise.all([
         getInstagramAccountInsights(query),
         getInstagramMediaInsights({ ...query, mediaType, limit: 50 }),
@@ -118,10 +122,11 @@ function AnalyticsPage(props) {
     } catch (requestError) {
       setAccount(null); setMedia(null); setError(friendlyError(requestError))
     } finally { setLoading(false) }
-  }, [params, mediaType])
+  }, [params, mediaType, profile, clients.length, selectedClientId])
 
   useEffect(() => { Promise.resolve().then(load) }, [load])
-  const isAdmin = profile?.role === 'ADMIN' || profile?.fullName?.toLocaleLowerCase() === 'otzar'
+  const isAdmin = profile?.role === 'ADMIN'
+  const canView = isAdmin || profile?.role === 'CLIENT'
   const trend = account?.dailyTrend || []
   const items = media?.items || []
   const availableMetricCards = metricCards.filter(([key]) => account?.[key] !== null && account?.[key] !== undefined)
@@ -139,8 +144,8 @@ function AnalyticsPage(props) {
         <button type="button" className="secondary-button analytics-refresh" onClick={load} disabled={loading}><RefreshCw size={18} />רענון</button>
       </header>
 
-      {profile && !isAdmin && <div className="analytics-state analytics-error" role="alert">הגישה לאנליטיקה זמינה למנהלים בלבד.</div>}
-      {isAdmin && <section className="instagram-filters" aria-label="מסנני אנליטיקה">
+      {canView && <section className="instagram-filters" aria-label="מסנני אנליטיקה">
+        {isAdmin && <label>לקוח<select aria-label="Client" value={selectedClientId} onChange={(e) => { setAccount(null); setMedia(null); setError(null); setSelectedClientId(e.target.value) }}><option value="">בחירת לקוח</option>{clients.map(client => <option key={client.client_id} value={client.client_id}>{client.business_name}</option>)}</select></label>}
         <label>טווח זמן<select value={range} onChange={(e) => setRange(e.target.value)}>{Object.entries(ranges).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
         {range === 'custom' && <><label>מתאריך<input type="date" value={custom.since} onChange={(e) => setCustom(c => ({...c,since:e.target.value}))} /></label><label>עד תאריך<input type="date" value={custom.until} onChange={(e) => setCustom(c => ({...c,until:e.target.value}))} /></label></>}
         <label>סוג תוכן<select value={mediaType} onChange={(e) => setMediaType(e.target.value)}>{Object.entries(mediaTypes).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
@@ -148,8 +153,8 @@ function AnalyticsPage(props) {
 
       {loading && <div className="analytics-state" role="status"><span className="analytics-loader" />טוען נתוני Instagram Insights...</div>}
       {!loading && error && <div className="analytics-state analytics-error" role="alert"><p>{error.text}</p>{error.kind !== 'FORBIDDEN' && <button type="button" className="secondary-button" onClick={load}>ניסיון נוסף</button>}</div>}
-      {!loading && !error && isAdmin && !account && <div className="analytics-state">אין נתוני חשבון זמינים.</div>}
-      {!loading && !error && account && <>
+      {!loading && !error && canView && !account && <div className="analytics-state">{isAdmin && !selectedClientId ? 'יש לבחור לקוח להצגת אנליטיקת Instagram.' : 'אין נתוני חשבון זמינים.'}</div>}
+      {!loading && !error && canView && account && <>
         <section className="analytics-summary instagram-summary" aria-label="מדדי סיכום">
           {availableMetricCards.map(([key,label]) => <article key={key}>
             <span>{label}{key === 'engagementRate' && <span className="metric-help" title="סך האינטראקציות חלקי החשיפה, כפול 100" aria-label="שיעור מעורבות: סך האינטראקציות חלקי החשיפה, כפול 100"><HelpCircle size={15} aria-hidden="true" /></span>}</span>

@@ -4,15 +4,45 @@ import com.otzar.sscm.entities.InstagramConnectionSettings;
 import com.otzar.sscm.models.InstagramSettingsResponse;
 import com.otzar.sscm.repository.InstagramConnectionSettingsRepository;
 import com.otzar.sscm.service.InstagramConnectionSettingsService;
+import com.otzar.sscm.service.ClientService;
+import com.otzar.sscm.service.InstagramInsightsException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InstagramConnectionSettingsServiceTests {
+    @Test
+    void otzarClientUsesEnvironmentConfigurationWhenPersistedSettingsAreMissing() {
+        InstagramConnectionSettingsRepository repository = mock(InstagramConnectionSettingsRepository.class);
+        ClientService clients = mock(ClientService.class);
+        when(clients.isLinkedToUsername(7L, "otzar")).thenReturn(true);
+        when(repository.findByClientId(7L)).thenReturn(Optional.empty());
+        InstagramSettingsResponse response = new InstagramConnectionSettingsService(repository,
+                "178900000000002", "https://graph.facebook.com/v25.0", "unchanged-token", clients).get(7L);
+        assertEquals("178900000000002", response.instagramUserId);
+        assertEquals("ENV", response.instagramUserIdSource);
+        assertEquals("https://graph.facebook.com/v25.0", response.graphApiBaseUrl);
+        assertEquals(true, response.accessTokenConfigured);
+    }
+
+    @Test
+    void nonOtzarClientNeverReceivesEnvironmentFallback() {
+        InstagramConnectionSettingsRepository repository = mock(InstagramConnectionSettingsRepository.class);
+        ClientService clients = mock(ClientService.class);
+        when(clients.isLinkedToUsername(8L, "otzar")).thenReturn(false);
+        InstagramInsightsException error = assertThrows(InstagramInsightsException.class, () ->
+                new InstagramConnectionSettingsService(repository, "178900000000002",
+                        "https://graph.facebook.com/v25.0", "unchanged-token", clients).get(8L));
+        assertEquals("INSTAGRAM_NOT_CONNECTED", error.getCode());
+        verify(repository, never()).findByClientId(8L);
+    }
     @Test
     void validDatabaseValuesTakePriority() {
         InstagramConnectionSettings settings = settings(

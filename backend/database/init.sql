@@ -86,9 +86,11 @@ CREATE TABLE comments (
 
 CREATE TABLE instagram_connection_settings (
     settings_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    client_id INT NOT NULL UNIQUE,
     instagram_user_id VARCHAR(40) NOT NULL,
     graph_api_base_url VARCHAR(255) NOT NULL,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id)
 );
 
 CREATE TABLE notifications (

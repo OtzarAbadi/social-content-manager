@@ -8,6 +8,10 @@ export async function getAnalyticsProfile() {
   return (await api.get('/users/me')).data
 }
 
+export async function getAnalyticsClients() {
+  return (await api.get('/clients')).data
+}
+
 export async function getInstagramAccountInsights(params) {
   return (await api.get('/instagram/insights/account', { params, suppressGlobalErrorToast: true })).data
 }

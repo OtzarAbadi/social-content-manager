@@ -5,15 +5,28 @@ export async function getPublishingStatus({ signal } = {}) {
   return response.data
 }
 
-export async function getInstagramSettings() {
-  const response = await api.get('/instagram/settings')
+export async function getInstagramSettings(clientId) {
+  const response = await api.get('/instagram/settings', {
+    params: { clientId }, suppressGlobalErrorToast: true,
+  })
   return response.data
 }
 
-export async function updateInstagramSettings(settings) {
+export async function updateInstagramSettings(clientId, settings) {
   const response = await api.put('/instagram/settings', settings, {
+    params: { clientId },
     suppressGlobalErrorToast: true,
   })
+  return response.data
+}
+
+export async function getIntegrationClients() {
+  const response = await api.get('/clients')
+  return response.data
+}
+
+export async function getIntegrationProfile() {
+  const response = await api.get('/users/me')
   return response.data
 }
 

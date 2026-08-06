@@ -6,7 +6,7 @@ import {
 import PageShell from '../components/PageShell.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import {
-  getInstagramSettings, getPublishingStatus, updateInstagramSettings,
+  getInstagramSettings, getIntegrationClients, getIntegrationProfile, getPublishingStatus,
 } from '../api/publishing.js'
 
 function StatusLine({ label, value, state = 'neutral' }) {
@@ -18,51 +18,53 @@ function StatusLine({ label, value, state = 'neutral' }) {
 
 function IntegrationsPage(props) {
   const [status, setStatus] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [clients, setClients] = useState([])
+  const [selectedClientId, setSelectedClientId] = useState('')
   const [state, setState] = useState('loading')
-  const [settings, setSettings] = useState({ instagramUserId: '', graphApiBaseUrl: '' })
-  const [saving, setSaving] = useState(false)
-  const [saveState, setSaveState] = useState('')
+  const [settingsState, setSettingsState] = useState('idle')
 
   const load = useCallback(async () => {
     setState('loading')
     try {
-      const [publishingStatus, instagramSettings] = await Promise.all([
-        getPublishingStatus(), getInstagramSettings(),
+      const [publishingStatus, currentProfile] = await Promise.all([
+        getPublishingStatus(), getIntegrationProfile(),
       ])
       setStatus(publishingStatus)
-      setSettings({
-        instagramUserId: instagramSettings.instagramUserId || '',
-        graphApiBaseUrl: instagramSettings.graphApiBaseUrl || '',
-        accessTokenConfigured: Boolean(instagramSettings.accessTokenConfigured),
-      })
+      setProfile(currentProfile)
+      if (currentProfile?.role === 'ADMIN') setClients(await getIntegrationClients())
       setState('ready')
     } catch (error) {
       setState(error?.response?.status === 403 ? 'forbidden' : 'error')
     }
   }, [])
 
-  async function saveSettings(event) {
-    event.preventDefault()
-    setSaving(true)
-    setSaveState('')
-    try {
-      const updated = await updateInstagramSettings({
-        instagramUserId: settings.instagramUserId.trim(),
-        graphApiBaseUrl: settings.graphApiBaseUrl.trim(),
-      })
-      setSettings((current) => ({ ...current, ...updated }))
-      setSaveState('success')
-    } catch {
-      setSaveState('error')
-    } finally {
-      setSaving(false)
+  const loadSettings = useCallback(async () => {
+    const admin = profile?.role === 'ADMIN'
+    if (!profile || (admin && !selectedClientId)) {
+      setSettingsState('idle')
+      return
     }
-  }
+    setSettingsState('loading')
+    try {
+      const connection = await getInstagramSettings(admin ? selectedClientId : undefined)
+      setSettingsState(connection.connected ? 'connected' : 'disconnected')
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        setSettingsState('disconnected')
+      } else {
+        setSettingsState('error')
+      }
+    }
+  }, [profile, selectedClientId])
 
   useEffect(() => { Promise.resolve().then(load) }, [load])
+  useEffect(() => { Promise.resolve().then(loadSettings) }, [loadSettings])
 
   const automatic = Boolean(status?.automaticPublishingEnabled)
   const provider = status?.activeProvider || 'לא זמין'
+  const isAdmin = profile?.role === 'ADMIN'
+  const connected = settingsState === 'connected'
 
   return <PageShell {...props}>
     <section className="integrations-page" dir="rtl" aria-labelledby="integrations-title">
@@ -82,6 +84,15 @@ function IntegrationsPage(props) {
       {state === 'error' && <div className="state-card error-state" role="alert">לא ניתן לטעון את מצב האינטגרציות. <button type="button" className="secondary-button" onClick={load}>ניסיון נוסף</button></div>}
 
       {state === 'ready' && status && <>
+        {isAdmin && <section className="integration-detail-card instagram-settings-form" aria-label="בחירת לקוח להגדרות Instagram">
+          <label>
+            לקוח
+            <select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
+              <option value="">בחירת לקוח</option>
+              {clients.map((client) => <option key={client.client_id} value={client.client_id}>{client.business_name}</option>)}
+            </select>
+          </label>
+        </section>}
         <section className="integration-hero-card" aria-labelledby="instagram-connection-title">
           <div className="integration-hero-icon"><Camera size={30} aria-hidden="true" /></div>
           <div className="integration-hero-copy">
@@ -89,48 +100,17 @@ function IntegrationsPage(props) {
             <h3 id="instagram-connection-title">חיבור Instagram ו-Meta</h3>
             <p>החיבור מאפשר פרסום תמונות מאושרות וקבלת נתוני ביצועים מחשבון Instagram המקצועי.</p>
           </div>
-          <span className="integration-health"><CheckCircle2 size={18} aria-hidden="true" /> הגדרות השרת פעילות</span>
+          <span className="integration-health"><CheckCircle2 size={18} aria-hidden="true" /> {connected ? 'מחובר דרך הגדרות השרת' : 'חשבון Instagram אינו מחובר ללקוח זה'}</span>
         </section>
 
         <div className="integration-detail-grid">
-          <form className="integration-detail-card instagram-settings-form" onSubmit={saveSettings}>
-            <h3><Camera size={20} aria-hidden="true" /> פרטי חשבון Instagram</h3>
-            <label>
-              מזהה חשבון Instagram מקצועי
-              <input
-                value={settings.instagramUserId}
-                onChange={(event) => setSettings((current) => ({ ...current, instagramUserId: event.target.value }))}
-                inputMode="numeric"
-                pattern="[0-9]{5,40}"
-                required
-                disabled={saving}
-              />
-            </label>
-            <label>
-              כתובת Graph API
-              <input
-                type="url"
-                dir="ltr"
-                value={settings.graphApiBaseUrl}
-                onChange={(event) => setSettings((current) => ({ ...current, graphApiBaseUrl: event.target.value }))}
-                pattern="https://graph\.facebook\.com/v[0-9]+\.[0-9]+/?"
-                required
-                disabled={saving}
-              />
-            </label>
-            <p className="instagram-token-state">
-              אסימון Meta: {settings.accessTokenConfigured ? 'מוגדר באופן מאובטח בשרת' : 'לא מוגדר בשרת'}
-            </p>
-            {saveState === 'success' && <p className="instagram-settings-feedback success" role="status">פרטי Instagram עודכנו בהצלחה.</p>}
-            {saveState === 'error' && <p className="instagram-settings-feedback error" role="alert">לא הצלחנו לעדכן את הפרטים. בדקו את הערכים ונסו שוב.</p>}
-            <button type="submit" className="primary-button" disabled={saving}>
-              {saving ? <><span className="button-spinner" />שומר...</> : 'שמירת פרטי Instagram'}
-            </button>
-          </form>
           <article className="integration-detail-card">
             <h3><ShieldCheck size={20} aria-hidden="true" /> מצב החיבור</h3>
             <StatusLine label="ספק פרסום פעיל" value={provider === 'LOCAL' ? 'מקומי' : provider} />
-            <StatusLine label="חשבון מחובר" value="מוגדר בצד השרת" state="success" />
+            <StatusLine label="חשבון מחובר" value={connected ? 'כן — דרך הגדרות השרת' : 'לא'} state={connected ? 'success' : 'neutral'} />
+            {settingsState === 'loading' && <p role="status">טוען מצב חיבור...</p>}
+            {settingsState === 'disconnected' && <p role="alert">Instagram account is not connected for this client.</p>}
+            {settingsState === 'error' && <p role="alert">לא הצלחנו לטעון את מצב החיבור.</p>}
             <StatusLine label="הרשאות פרסום" value="נבדקות בזמן פרסום" />
             <StatusLine label="הרשאות אנליטיקה" value="נבדקות מול Meta בזמן טעינה" />
           </article>

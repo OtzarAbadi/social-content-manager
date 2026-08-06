@@ -89,6 +89,7 @@
         <id name="settingsId" column="settings_id" type="long">
             <generator class="identity"/>
         </id>
+        <property name="clientId" column="client_id" type="long" not-null="true" unique="true"/>
         <property name="instagramUserId" column="instagram_user_id" type="string" not-null="true"/>
         <property name="graphApiBaseUrl" column="graph_api_base_url" type="string" not-null="true"/>
         <property name="updatedAt" column="updated_at" type="java.time.LocalDateTime" not-null="true"/>

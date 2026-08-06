@@ -39,6 +39,15 @@ public class ClientService {
         return clientRepository.findByUserId(userId);
     }
 
+    public boolean isLinkedToUsername(Long clientId, String username) {
+        if (clientId == null || username == null) return false;
+        return clientRepository.findById(clientId)
+                .flatMap(client -> userRepository.findById(client.getUser_id()))
+                .map(User::getUsername)
+                .map(linkedUsername -> username.equalsIgnoreCase(linkedUsername))
+                .orElse(false);
+    }
+
     public Client create(CreateClientRequest request) {
         User user = new User();
         user.setFull_name(valueOrFallback(request.getFullName(), request.getBusinessName()));
