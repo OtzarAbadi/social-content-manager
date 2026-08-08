@@ -87,6 +87,25 @@ describe('AnalyticsPage', () => {
     expect(previews.some((preview) => preview.classList.contains('instagram-media-thumbnail'))).toBe(true)
     expect(screen.getByLabelText('צפייה בפוסט באינסטגרם').getAttribute('rel')).toBe('noopener noreferrer')
   })
+  it('renders captions verbatim and leaves missing or blank caption cells empty', async () => {
+    const captionItems = [
+      { ...item, mediaId: 'caption-present', caption: '  כיתוב עם רווחים  ' },
+      { ...item, mediaId: 'caption-null', caption: null, reach: null },
+      { ...item, mediaId: 'caption-undefined', caption: undefined },
+      { ...item, mediaId: 'caption-empty', caption: '' },
+      { ...item, mediaId: 'caption-whitespace', caption: '   \t\n' },
+    ]
+    getInstagramMediaInsights.mockResolvedValue({ items: captionItems })
+
+    const { container } = renderPage()
+    await screen.findByText('1,234')
+
+    const rows = [...container.querySelectorAll('.instagram-media-table tbody tr')]
+    const captionCells = rows.map((row) => row.querySelector('.instagram-caption'))
+    expect(captionCells[0].textContent).toBe('  כיתוב עם רווחים  ')
+    expect(captionCells.slice(1).every((cell) => cell.textContent === '')).toBe(true)
+    expect(rows[1].children[4].textContent).toBe('לא זמין')
+  })
   it('renders permission error and retry for temporary failures', async () => {
     getInstagramAccountInsights.mockRejectedValue({ response: { data: { code: 'MISSING_PERMISSION' }, status: 403 } })
     const view = renderPage()

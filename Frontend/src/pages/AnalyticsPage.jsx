@@ -181,7 +181,7 @@ function AnalyticsPage(props) {
           <div className="analytics-table-wrap"><table className="analytics-table instagram-media-table">
             <thead><tr>{['תצוגה','כיתוב','תאריך פרסום','סוג','חשיפה','צפיות','לייקים','תגובות','שמירות','שיתופים','אינטראקציות','שיעור מעורבות','קישור'].map(h=><th key={h}>{h}</th>)}</tr></thead>
             <tbody>{items.map(item => <tr key={item.mediaId}>
-              <td><Preview item={item} /></td><td className="instagram-caption">{item.caption || unavailable}</td>
+              <td><Preview item={item} /></td><td className="instagram-caption">{item.caption?.trim() ? item.caption : ''}</td>
               <td>{item.timestamp ? new Date(item.timestamp).toLocaleDateString('he-IL') : unavailable}</td><td>{item.mediaProductType || item.mediaType || unavailable}</td>
               {['reach','views','likes','comments','saved','shares','totalInteractions'].map(k=><td key={k}>{show(item[k])}</td>)}
               <td>{show(item.engagementRate,true)}</td><td>{item.permalink ? <a href={item.permalink} target="_blank" rel="noopener noreferrer" aria-label="צפייה בפוסט באינסטגרם"><ExternalLink size={18}/></a> : unavailable}</td>
