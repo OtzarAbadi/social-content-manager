@@ -14,10 +14,12 @@ import InstagramPublishAction from '../components/InstagramPublishAction.jsx'
 import CreationModal from '../components/CreationModal.jsx'
 import ContentMediaCarousel from '../components/ContentMediaCarousel.jsx'
 import SelectedMediaPreview from '../components/SelectedMediaPreview.jsx'
+import ImageEditorModal from '../components/ImageEditorModal.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 import { appendMediaFiles, legacyContentType, mediaAcceptForMode, MIXED_MEDIA_MODE, validateMediaSelection } from '../utils/contentMediaForm.js'
 import { emptyContentFilters, filterContents } from '../utils/contentFilters.js'
 import { normalizeInstagramUsername, normalizeIsraeliPhone, validateClientFields } from '../utils/clientFields.js'
+import { isEditableImage } from '../utils/imageEditor.js'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
@@ -177,6 +179,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [clientDraft, setClientDraft] = useState(null)
   const [contentDraft, setContentDraft] = useState(null)
   const [replacementMedia, setReplacementMedia] = useState([])
+  const [imageEditor, setImageEditor] = useState(null)
 
   const [loading, setLoading] = useState({
     clients: true,
@@ -844,6 +847,26 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       ...current,
       [name]: value,
     }))
+  }
+
+  function openImageEditor(scope, index, file) {
+    if (!isEditableImage(file)) {
+      setErrors((current) => ({ ...current, contents: 'פורמט התמונה אינו נתמך לעריכה' }))
+      return
+    }
+    setImageEditor({ scope, index, file })
+  }
+
+  function saveEditedImage(editedFile) {
+    if (imageEditor.scope === 'create') {
+      setContentForm((current) => ({
+        ...current,
+        files: current.files.map((file, index) => index === imageEditor.index ? editedFile : file),
+      }))
+    } else {
+      setReplacementMedia((current) => current.map((file, index) => index === imageEditor.index ? editedFile : file))
+    }
+    setImageEditor(null)
   }
 
   async function handleUpdateContent(contentId) {
@@ -1650,6 +1673,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                       }}>
                                         <SelectedMediaPreview file={file} alt={`${file.name}, פריט ${index + 1}`} />
                                         <span>{index + 1}. {file.name}</span>
+                                        {isEditableImage(file) && <button type="button" className="secondary-button small-button" onClick={() => openImageEditor('replacement', index, file)}>עריכת תמונה</button>}
                                         <button type="button" aria-label={`הסרת ${file.name}`} onClick={() => setReplacementMedia((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button>
                                         <button type="button" disabled={index === 0} aria-label={`העברת ${file.name} למעלה`} onClick={() => setReplacementMedia((current) => current.map((item, itemIndex) => itemIndex === index - 1 ? current[index] : itemIndex === index ? current[index - 1] : item))}>↑</button>
                                         <button type="button" disabled={index === replacementMedia.length - 1} aria-label={`העברת ${file.name} למטה`} onClick={() => setReplacementMedia((current) => current.map((item, itemIndex) => itemIndex === index ? current[index + 1] : itemIndex === index + 1 ? current[index] : item))}>↓</button>
@@ -1879,7 +1903,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                           <strong>{contentForm.files.length} / 10 פריטי מדיה</strong>
                           {contentForm.files.map((file, index) => <div key={`${file.name}-${file.lastModified}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', String(index))} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
                             event.preventDefault(); const from=Number(event.dataTransfer.getData('text/plain')); setContentForm((current) => { const files=[...current.files]; const [moved]=files.splice(from,1); files.splice(index,0,moved); return {...current,files} })
-                          }}><SelectedMediaPreview file={file} alt={`${file.name}, פריט ${index + 1}`} /><span>{index + 1}. {file.name}</span><button type="button" aria-label={`הסרת ${file.name}`} onClick={() => setContentForm((current) => ({...current,files:current.files.filter((_,itemIndex)=>itemIndex!==index)}))}>×</button>
+                          }}><SelectedMediaPreview file={file} alt={`${file.name}, פריט ${index + 1}`} /><span>{index + 1}. {file.name}</span>{isEditableImage(file) && <button type="button" className="secondary-button small-button" onClick={() => openImageEditor('create', index, file)}>עריכת תמונה</button>}<button type="button" aria-label={`הסרת ${file.name}`} onClick={() => setContentForm((current) => ({...current,files:current.files.filter((_,itemIndex)=>itemIndex!==index)}))}>×</button>
                           <button type="button" aria-label={`הזזת ${file.name} אחורה`} disabled={index===0} onClick={() => setContentForm((current)=>{const files=[...current.files];[files[index-1],files[index]]=[files[index],files[index-1]];return {...current,files}})}>↑</button>
                           <button type="button" aria-label={`הזזת ${file.name} קדימה`} disabled={index===contentForm.files.length-1} onClick={() => setContentForm((current)=>{const files=[...current.files];[files[index+1],files[index]]=[files[index],files[index+1]];return {...current,files}})}>↓</button></div>)}
                         </div>
@@ -2053,6 +2077,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
           }}
         />
       )}
+      {imageEditor && <ImageEditorModal file={imageEditor.file} onCancel={() => setImageEditor(null)} onSave={saveEditedImage} />}
       {archiveDialog.clientId !== null && (
         <div className="modal-backdrop" role="presentation">
           <div className="modal-card client-archive-confirmation" role="dialog" aria-modal="true" aria-labelledby="archive-client-dialog-title">

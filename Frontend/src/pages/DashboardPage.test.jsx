@@ -7,6 +7,12 @@ import api from '../services/api.js'
 
 vi.mock('../services/api.js', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 vi.mock('../components/PageShell.jsx', () => ({ default: ({ children }) => <main>{children}</main> }))
+vi.mock('../components/SelectedMediaPreview.jsx', () => ({ default: ({ file }) => <span data-testid="selected-preview">{file.name}</span> }))
+vi.mock('../components/ImageEditorModal.jsx', () => ({ default: ({ file, onCancel, onSave }) => <section role="dialog" aria-label="mock-image-editor">
+  <span>{file.name}</span>
+  <button type="button" onClick={onCancel}>ביטול עריכה</button>
+  <button type="button" onClick={() => onSave(new File(['edited'], `edited-${file.name}`, { type: file.type }))}>שמירת עריכה</button>
+</section> }))
 
 function LocationProbe() {
   const location = useLocation()
@@ -215,7 +221,7 @@ describe('Client archive management', () => {
       <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
     </MemoryRouter>)
     await screen.findByText('Active history')
-    fireEvent.click(screen.getByRole('button', { name: 'יצירת תוכן חדש' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'יצירת תוכן חדש' })[0])
 
     const createForm = container.querySelector('.creation-modal-dialog form')
     const clientSelector = createForm.querySelector('select[name="clientId"]')
@@ -281,6 +287,58 @@ describe('Client form validation and Instagram username', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/clients', expect.objectContaining({
       phone: '0501234567', instagramUsername: 'new.social',
     })))
+  })
+})
+
+describe('Content image editor upload integration', () => {
+  afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+  it('replaces only the selected image, preserves carousel order, and uploads the edited File', async () => {
+    const client = { client_id: 1, business_name: 'Media Client' }
+    mockDashboardData({ clients: [client], contents: [] })
+    api.post.mockResolvedValue({ data: {} })
+    const { container } = render(<MemoryRouter initialEntries={['/content']}>
+      <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/clients'))
+    fireEvent.click(screen.getAllByRole('button', { name: 'יצירת תוכן חדש' })[0])
+    const form = container.querySelector('.creation-modal-dialog form')
+    fireEvent.change(form.elements.clientId, { target: { name: 'clientId', value: '1' } })
+    fireEvent.change(form.elements.title, { target: { name: 'title', value: 'Edited carousel' } })
+    fireEvent.change(form.elements.media_mode, { target: { name: 'media_mode', value: 'MIXED' } })
+    const firstImage = new File(['first'], 'first.jpg', { type: 'image/jpeg' })
+    const video = new File(['video'], 'middle.mp4', { type: 'video/mp4' })
+    const lastImage = new File(['last'], 'last.png', { type: 'image/png' })
+    fireEvent.change(form.elements.files, { target: { name: 'files', files: [firstImage, video, lastImage] } })
+
+    const editButtons = screen.getAllByRole('button', { name: 'עריכת תמונה' })
+    expect(editButtons).toHaveLength(2)
+    fireEvent.click(editButtons[1])
+    expect(screen.getByRole('dialog', { name: 'mock-image-editor' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'שמירת עריכה' }))
+    fireEvent.submit(form)
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const upload = api.post.mock.calls.find(([url]) => url === '/contents')[1]
+    expect(upload.getAll('files').map((file) => file.name)).toEqual([
+      'first.jpg', 'middle.mp4', 'edited-last.png',
+    ])
+  })
+
+  it('offers editing for replacement images but not replacement videos', async () => {
+    const content = { contentId: 10, clientId: 1, title: 'Existing content', status: 'DRAFT', content_type: 'IMAGE' }
+    mockDashboardData({ clients: [{ client_id: 1, business_name: 'Media Client' }], contents: [content] })
+    const { container } = render(<MemoryRouter initialEntries={['/content']}>
+      <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+    const card = (await screen.findByText('Existing content')).closest('article')
+    fireEvent.click(within(card).getByRole('button', { name: 'עריכה' }))
+    const replacementInput = container.querySelector('.replace-media-field input[type="file"]')
+    fireEvent.change(replacementInput, { target: { files: [
+      new File(['image'], 'replacement.webp', { type: 'image/webp' }),
+      new File(['video'], 'replacement.mp4', { type: 'video/mp4' }),
+    ] } })
+    expect(within(card).getAllByRole('button', { name: 'עריכת תמונה' })).toHaveLength(1)
   })
 })
 
