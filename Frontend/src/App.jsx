@@ -91,17 +91,24 @@ function App() {
   const navigate = useNavigate()
   const [activeRoute, setActiveRoute] = useState(() => getRouteFromPath(location.pathname, location.search))
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentRole, setCurrentRole] = useState(null)
   const [isAuthResolved, setIsAuthResolved] = useState(false)
   const ActivePage = routes[activeRoute].Component
 
   useEffect(() => {
     let active = true
     api.get('/users/me', { suppressGlobalErrorToast: true })
-      .then(() => {
-        if (active) setIsAuthenticated(true)
+      .then((response) => {
+        if (active) {
+          setCurrentRole(response.data?.role || null)
+          setIsAuthenticated(true)
+        }
       })
       .catch(() => {
-        if (active) setIsAuthenticated(false)
+        if (active) {
+          setCurrentRole(null)
+          setIsAuthenticated(false)
+        }
       })
       .finally(() => {
         if (active) setIsAuthResolved(true)
@@ -119,15 +126,19 @@ function App() {
       } else if (isAuthenticated && requestedRoute === 'login') {
         navigate(routes.dashboard.path, { replace: true })
         setActiveRoute('dashboard')
+      } else if (requestedRoute === 'integrations' && currentRole !== 'ADMIN') {
+        navigate(routes.dashboard.path, { replace: true })
+        setActiveRoute('dashboard')
       } else {
         setActiveRoute(requestedRoute)
       }
     })
-  }, [isAuthResolved, isAuthenticated, location.pathname, location.search, navigate])
+  }, [isAuthResolved, isAuthenticated, currentRole, location.pathname, location.search, navigate])
 
   function navigateTo(routeKey) {
-    navigate(routes[routeKey].path)
-    setActiveRoute(routeKey)
+    const allowedRoute = routeKey === 'integrations' && currentRole !== 'ADMIN' ? 'dashboard' : routeKey
+    navigate(routes[allowedRoute].path)
+    setActiveRoute(allowedRoute)
   }
 
   function handleAuthenticated() {
@@ -140,6 +151,7 @@ function App() {
       await api.post('/users/logout', null, { suppressGlobalErrorToast: true })
     } finally {
       setIsAuthenticated(false)
+      setCurrentRole(null)
       navigateTo('login')
     }
   }

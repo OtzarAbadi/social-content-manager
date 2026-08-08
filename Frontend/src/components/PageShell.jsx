@@ -81,7 +81,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
           {canViewAnalytics && <a className={`route-analytics ${activeRoute === 'analytics' ? 'active' : ''}`} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
           {canViewNotifications && <a className={`route-notifications ${activeRoute === 'notifications' ? 'active' : ''}`} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
           {canViewActivity && <a className={`route-activity ${activeRoute === 'activity' ? 'active' : ''}`} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>מרכז הפעילות</span></a>}
-          {(isAdmin || profile?.role === 'CLIENT') && <a className={`route-integrations ${activeRoute === 'integrations' ? 'active' : ''}`} href={routes.integrations.path} onClick={(e) => navigate(e, 'integrations')}><i>{icons.integrations}</i><span>אינטגרציות</span></a>}
+          {isAdmin && <a className={`route-integrations ${activeRoute === 'integrations' ? 'active' : ''}`} href={routes.integrations.path} onClick={(e) => navigate(e, 'integrations')}><i>{icons.integrations}</i><span>אינטגרציות</span></a>}
         </nav>
         <button className="sidebar-logout" type="button" onClick={onLogout}><i>{icons.logout}</i><span>התנתקות</span></button>
       </aside>
@@ -109,7 +109,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
         {canViewAnalytics && <a data-route="analytics" className={activeRoute === 'analytics' ? 'active' : ''} href={routes.analytics.path} onClick={(e) => navigate(e, 'analytics')}><i>{icons.analytics}</i><span>אנליטיקה</span></a>}
         {canViewNotifications && <a data-route="notifications" className={activeRoute === 'notifications' ? 'active' : ''} href={routes.notifications.path} onClick={(e) => navigate(e, 'notifications')}><i>{icons.notifications}</i><span>התראות</span></a>}
         {canViewActivity && <a data-route="activity" className={activeRoute === 'activity' ? 'active' : ''} href={routes.activity.path} onClick={(e) => navigate(e, 'activity')}><i>{icons.activity}</i><span>פעילות</span></a>}
-        {(isAdmin || profile?.role === 'CLIENT') && <a data-route="integrations" className={activeRoute === 'integrations' ? 'active' : ''} href={routes.integrations.path} onClick={(e) => navigate(e, 'integrations')}><i>{icons.integrations}</i><span>אינטגרציות</span></a>}
+        {isAdmin && <a data-route="integrations" className={activeRoute === 'integrations' ? 'active' : ''} href={routes.integrations.path} onClick={(e) => navigate(e, 'integrations')}><i>{icons.integrations}</i><span>אינטגרציות</span></a>}
         <button type="button" onClick={onLogout}><i>{icons.logout}</i><span>יציאה</span></button>
       </nav>
     </div>

@@ -41,6 +41,7 @@ describe('PageShell mobile navigation', () => {
     const navigation = screen.getByRole('navigation', { name: 'ניווט לנייד' })
 
     await waitFor(() => expect(within(navigation).getByText('אינטגרציות')).toBeTruthy())
+    expect(within(screen.getByRole('complementary', { name: 'ניווט ראשי' })).getByText('אינטגרציות')).toBeTruthy()
     for (const label of ['בית', 'לוח שנה', 'תוכן', 'לקוחות', 'הודעות', 'אנליטיקה', 'התראות', 'פעילות', 'אינטגרציות', 'יציאה']) {
       expect(within(navigation).getByText(label)).toBeTruthy()
     }
@@ -68,7 +69,8 @@ describe('PageShell mobile navigation', () => {
     await within(navigation).findByText('התראות')
     expect(within(navigation).queryByText('לקוחות')).toBeNull()
     expect(within(navigation).getByText('אנליטיקה')).toBeTruthy()
-    expect(within(navigation).getByText('אינטגרציות')).toBeTruthy()
+    expect(within(navigation).queryByText('אינטגרציות')).toBeNull()
+    expect(within(screen.getByRole('complementary', { name: 'ניווט ראשי' })).queryByText('אינטגרציות')).toBeNull()
     expect(within(navigation).getByText('התראות')).toBeTruthy()
     expect(within(navigation).getByText('פעילות')).toBeTruthy()
     expect(within(navigation).getByText('פיד')).toBeTruthy()
