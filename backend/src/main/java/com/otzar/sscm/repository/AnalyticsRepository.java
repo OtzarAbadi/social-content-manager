@@ -39,7 +39,7 @@ public class AnalyticsRepository {
 
     public List<Client> findClients() {
         return persist.getQuerySession()
-                .createQuery("FROM Client ORDER BY client_id", Client.class)
+                .createQuery("FROM Client WHERE archived = false ORDER BY client_id", Client.class)
                 .list();
     }
 }

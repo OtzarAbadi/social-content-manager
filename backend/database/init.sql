@@ -33,6 +33,7 @@ CREATE TABLE clients (
                          admin_id INT,
                          business_name VARCHAR(150) NOT NULL,
                          phone VARCHAR(20),
+                         archived BOOLEAN NOT NULL DEFAULT FALSE,
                          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
                          FOREIGN KEY (user_id) REFERENCES users(user_id),

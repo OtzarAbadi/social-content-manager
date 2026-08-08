@@ -132,6 +132,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
 
   const [clients, setClients] = useState([])
+  const [archivedClients, setArchivedClients] = useState([])
   const [users, setUsers] = useState([])
   const [socialManagers, setSocialManagers] = useState([])
   const [contents, setContents] = useState([])
@@ -149,6 +150,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
 
   const [clientSearch, setClientSearch] = useState('')
+  const [clientView, setClientView] = useState('active')
   const [commentSearch, setCommentSearch] = useState('')
   const [dashboardClientId, setDashboardClientId] = useState('')
   const [contentFilter, setContentFilter] = useState(() => ({
@@ -192,6 +194,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
   const [notice, setNotice] = useState('')
   const [rejectionDialog, setRejectionDialog] = useState({ contentId: null, reason: '' })
+  const [archiveDialog, setArchiveDialog] = useState({ clientId: null, businessName: '' })
+  const [archivingClient, setArchivingClient] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [historyContent, setHistoryContent] = useState(null)
   const [highlightedElementId, setHighlightedElementId] = useState('')
@@ -200,14 +204,15 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   )
 
   const clientById = useMemo(() => {
-    return new Map(clients.map((client) => [Number(getClientId(client)), client]))
-  }, [clients])
+    return new Map([...clients, ...archivedClients].map((client) => [Number(getClientId(client)), client]))
+  }, [archivedClients, clients])
   const userById = useMemo(() => new Map(users.map((user) => [Number(user.user_id), user])), [users])
   const managerByAdminId = useMemo(() => new Map(socialManagers.map((manager) => [Number(manager.adminId), manager])), [socialManagers])
   const visibleClients = useMemo(() => {
+    const source = clientView === 'archived' ? archivedClients : clients
     const query = clientSearch.trim().toLocaleLowerCase('he-IL')
-    if (!query) return clients
-    return clients.filter((client) => {
+    if (!query) return source
+    return source.filter((client) => {
       const customer = userById.get(Number(client.user_id))
       const clientContent = contents.filter((content) => Number(content.clientId ?? content.client_id) === Number(getClientId(client)))
       return [
@@ -218,7 +223,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
         ...clientContent.flatMap((content) => [content.title, content.description]),
       ].some((value) => String(value || '').toLocaleLowerCase('he-IL').includes(query))
     })
-  }, [clientSearch, clients, contents, userById])
+  }, [archivedClients, clientSearch, clientView, clients, contents, userById])
   const visibleComments = useMemo(() => {
     const query = commentSearch.trim().toLocaleLowerCase('he-IL')
     if (!query) return comments
@@ -322,6 +327,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       setLoading((current) => ({ ...current, clients: false }))
     }
   }, [resetResultView])
+
+  const loadArchivedClients = useCallback(async () => {
+    setLoading((current) => ({ ...current, clients: true }))
+    setErrors((current) => ({ ...current, clients: '' }))
+    try {
+      const response = await api.get('/clients/archived')
+      setArchivedClients(response.data)
+      return response.data
+    } catch {
+      setErrors((current) => ({ ...current, clients: 'לא הצלחנו לטעון את ארכיון הלקוחות' }))
+      return []
+    } finally {
+      setLoading((current) => ({ ...current, clients: false }))
+    }
+  }, [])
 
   const loadUsers = useCallback(async () => {
     try {
@@ -439,7 +459,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
     const requestedId = Number(requestedClientId)
     const authorizedClient = Number.isSafeInteger(requestedId) && requestedId > 0
-      && clients.some((client) => Number(getClientId(client)) === requestedId)
+      && [...clients, ...archivedClients].some((client) => Number(getClientId(client)) === requestedId)
     if (!authorizedClient) {
       setContentFilter((current) => current.clientId === '__invalid__'
         ? current
@@ -451,7 +471,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     setContentFilter((current) => current.clientId === String(requestedId)
       ? current
       : { ...current, clientId: String(requestedId) })
-  }, [activeRoute, clients, isClient, loading.clients, loading.profile, location.search])
+  }, [activeRoute, archivedClients, clients, isClient, loading.clients, loading.profile, location.search])
 
   useEffect(() => {
     const contentMatch = location.pathname.match(/^\/content\/(\d+)\/?$/)
@@ -612,17 +632,27 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     }
   }
 
-  async function handleDeleteClient(clientId) {
+  async function handleDeleteClient(client) {
+    const clientId = getClientId(client)
+    setErrors((current) => ({ ...current, clients: '' }))
+    try {
+      const { data } = await api.get(`/clients/${clientId}/content-count`)
+      if (Number(data.count) > 0) {
+        setArchiveDialog({ clientId, businessName: client.business_name })
+        return
+      }
+    } catch {
+      setErrors((current) => ({ ...current, clients: 'לא הצלחנו לבדוק אם קיימים תכנים ללקוח' }))
+      return
+    }
+
     if (!window.confirm(`למחוק את לקוח #${clientId}?`)) {
       return
     }
 
-    setErrors((current) => ({ ...current, clients: '' }))
-
     try {
       await api.delete(`/clients/${clientId}`)
       await loadClients()
-      await loadContents()
       showNotice(`לקוח #${clientId} נמחק`)
     } catch {
       setErrors((current) => ({
@@ -733,6 +763,41 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       event.preventDefault()
       openCommentContent(comment, content)
     }
+  }
+
+  async function handleArchiveClient() {
+    if (!archiveDialog.clientId) return
+    setArchivingClient(true)
+    setErrors((current) => ({ ...current, clients: '' }))
+    try {
+      await api.put(`/clients/${archiveDialog.clientId}/archive`)
+      const archivedId = archiveDialog.clientId
+      setArchiveDialog({ clientId: null, businessName: '' })
+      await Promise.all([loadClients(), loadArchivedClients()])
+      showNotice(`לקוח #${archivedId} הועבר לארכיון`)
+    } catch {
+      setErrors((current) => ({ ...current, clients: 'לא הצלחנו להעביר את הלקוח לארכיון' }))
+    } finally {
+      setArchivingClient(false)
+    }
+  }
+
+  async function handleRestoreClient(clientId) {
+    setErrors((current) => ({ ...current, clients: '' }))
+    try {
+      await api.put(`/clients/${clientId}/restore`)
+      await Promise.all([loadClients(), loadArchivedClients()])
+      showNotice(`לקוח #${clientId} שוחזר`)
+    } catch {
+      setErrors((current) => ({ ...current, clients: 'לא הצלחנו לשחזר את הלקוח' }))
+    }
+  }
+
+  async function showClientView(view) {
+    setClientView(view)
+    setClientSearch('')
+    if (view === 'archived') await loadArchivedClients()
+    else await loadClients()
   }
 
   function startContentEdit(content) {
@@ -1091,10 +1156,11 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                   <h2 id="clients-title">ניהול לקוחות</h2>
                 </div>
                 <div className="management-header-actions">
-                  <button type="button" className="secondary-button" onClick={loadClients}>כל הלקוחות</button>
-                  <button type="button" className="primary-button" onClick={() => toggleCreateForm('clients')}>
+                  <button type="button" className={clientView === 'active' ? 'primary-button' : 'secondary-button'} onClick={() => showClientView('active')}>לקוחות פעילים</button>
+                  <button type="button" className={clientView === 'archived' ? 'primary-button' : 'secondary-button'} onClick={() => showClientView('archived')}>ארכיון</button>
+                  {clientView === 'active' && <button type="button" className="primary-button" onClick={() => toggleCreateForm('clients')}>
                     {showCreateForm.clients ? 'סגירת יצירת לקוח' : 'יצירת לקוח חדש'}
-                  </button>
+                  </button>}
                 </div>
               </div>
 
@@ -1115,11 +1181,11 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {loading.clients && <Skeleton rows={3} />}
               {errors.clients && <p className="entity-state entity-state-error">{errors.clients}</p>}
-              {!loading.clients && !errors.clients && clients.length === 0 && (
-                <EmptyState icon={Users} title="עדיין אין לקוחות" description="הוסיפו את הלקוח הראשון כדי להתחיל לנהל עבורו תוכן." actionLabel="הוספת לקוח" onAction={() => setShowCreateForm((current) => ({ ...current, clients: true }))} />
+              {!loading.clients && !errors.clients && visibleClients.length === 0 && (
+                <EmptyState icon={Users} title={clientView === 'archived' ? 'הארכיון ריק' : 'עדיין אין לקוחות'} description={clientView === 'archived' ? 'לקוחות עם תוכן יופיעו כאן לאחר העברה לארכיון.' : 'הוסיפו את הלקוח הראשון כדי להתחיל לנהל עבורו תוכן.'} actionLabel={clientView === 'active' ? 'הוספת לקוח' : undefined} onAction={clientView === 'active' ? () => setShowCreateForm((current) => ({ ...current, clients: true })) : undefined} />
               )}
 
-              {filteredResults.clients && !loading.clients && !errors.clients && clients.length > 0 && (
+              {filteredResults.clients && !loading.clients && !errors.clients && visibleClients.length > 0 && (
                 <div className="result-actions">
                   <button type="button" className="ghost-button" onClick={() => toggleResults('clients')}>
                     {resultsHidden.clients ? 'הצגת תוצאות' : 'הסתרת תוצאות'}
@@ -1139,6 +1205,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                           <div className="entity-title-row">
                             <h3>{client.business_name}</h3>
                             <span className="channel-pill">לקוח #{clientId}</span>
+                            {clientView === 'archived' && <span className="archived-client-badge">בארכיון</span>}
                           </div>
 
                           {isEditing ? (
@@ -1213,27 +1280,29 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                             </>
                           ) : (
                             <>
-                              <button
+                              {clientView === 'active' && <button
                                 type="button"
                                 className="secondary-button small-button"
                                 onClick={() => startClientEdit(client)}
                               >
                                 עריכה
-                              </button>
+                              </button>}
                               <button
                                 type="button"
                                 className="secondary-button small-button"
                                 onClick={() => handleLoadContentsByClient(clientId)}
                               >
-                                תכנים
+                                {clientView === 'archived' ? 'צפייה בתכנים' : 'תכנים'}
                               </button>
-                              <button
+                              {clientView === 'active' ? <button
                                 type="button"
                                 className="danger-button small-button"
-                                onClick={() => handleDeleteClient(clientId)}
+                                onClick={() => handleDeleteClient(client)}
                               >
                                 מחיקה
-                              </button>
+                              </button> : <button type="button" className="primary-button small-button" onClick={() => handleRestoreClient(clientId)}>
+                                שחזור לקוח
+                              </button>}
                             </>
                           )}
                         </div>
@@ -1243,7 +1312,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                 </div>
               )}
 
-              {socialManagers.length > 0 && (
+              {clientView === 'active' && socialManagers.length > 0 && (
                 <section className="manager-client-summary" aria-labelledby="manager-client-summary-title">
                   <h3 id="manager-client-summary-title">לקוחות לפי מנהל סושיאל</h3>
                   <div className="manager-client-grid">
@@ -1930,6 +1999,21 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
               : `התוכן כבר תואם לגרסה ${result?.restoredFromVersionNumber}`)
           }}
         />
+      )}
+      {archiveDialog.clientId !== null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-card client-archive-confirmation" role="dialog" aria-modal="true" aria-labelledby="archive-client-dialog-title">
+            <h2 id="archive-client-dialog-title">העברת לקוח לארכיון</h2>
+            <p>ללקוח {archiveDialog.businessName} קיימים תכנים במערכת.</p>
+            <p>לא ניתן למחוק אותו לצמיתות מבלי לפגוע בהיסטוריית המערכת. הלקוח וכל התכנים שלו יועברו לארכיון.</p>
+            <div className="modal-actions">
+              <button type="button" className="ghost-button" onClick={() => setArchiveDialog({ clientId: null, businessName: '' })} disabled={archivingClient}>ביטול</button>
+              <button type="button" className="primary-button" onClick={handleArchiveClient} disabled={archivingClient}>
+                {archivingClient ? <><span className="button-spinner dark-spinner" />מעביר...</> : 'העבר לארכיון'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {rejectionDialog.contentId !== null && (
         <div className="modal-backdrop" role="presentation">

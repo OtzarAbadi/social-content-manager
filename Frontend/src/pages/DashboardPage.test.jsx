@@ -133,6 +133,96 @@ describe('Clients Management content filtering navigation', () => {
   })
 })
 
+describe('Client archive management', () => {
+  afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+  const activeClient = { client_id: 1, user_id: 10, business_name: 'Active Client', phone: '0501111111', archived: false }
+  const archivedClient = { client_id: 2, user_id: 20, business_name: 'Archived Client', phone: '0502222222', archived: true }
+
+  function mockArchiveApi() {
+    let active = [activeClient]
+    let archived = [archivedClient]
+    api.get.mockImplementation((url) => {
+      if (url === '/users/me') return Promise.resolve({ data: { role: 'ADMIN', id: 1 } })
+      if (url === '/clients') return Promise.resolve({ data: active })
+      if (url === '/clients/archived') return Promise.resolve({ data: archived })
+      if (url === '/clients/1/content-count') return Promise.resolve({ data: { count: 1 } })
+      if (url === '/contents') return Promise.resolve({ data: [
+        { contentId: 101, clientId: 1, title: 'Active history', status: 'DRAFT' },
+        { contentId: 202, clientId: 2, title: 'Archived history', status: 'PUBLISHED' },
+      ] })
+      return Promise.resolve({ data: [] })
+    })
+    api.put.mockImplementation((url) => {
+      if (url === '/clients/1/archive') {
+        active = []
+        archived = [...archived, { ...activeClient, archived: true }]
+      }
+      if (url === '/clients/1/restore') {
+        active = [activeClient]
+        archived = archived.filter((client) => client.client_id !== 1)
+      }
+      return Promise.resolve({ data: {} })
+    })
+  }
+
+  function renderClients() {
+    return render(<MemoryRouter initialEntries={['/clients']}>
+      <DashboardPage activeRoute="clients" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+      <LocationProbe />
+    </MemoryRouter>)
+  }
+
+  it('separates active and archived lists and opens archived historical content', async () => {
+    mockArchiveApi()
+    renderClients()
+
+    expect(await screen.findByText('Active Client')).toBeTruthy()
+    expect(screen.queryByText('Archived Client')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'ארכיון' }))
+    expect(await screen.findByText('Archived Client')).toBeTruthy()
+    expect(screen.queryByText('Active Client')).toBeNull()
+    expect(screen.getByText('בארכיון')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'צפייה בתכנים' }))
+    expect(screen.getByTestId('location').textContent).toBe('/content?clientId=2')
+  })
+
+  it('shows archive confirmation for a client with content, archives it, and restores it', async () => {
+    mockArchiveApi()
+    renderClients()
+    const card = (await screen.findByText('Active Client')).closest('article')
+    fireEvent.click(within(card).getByRole('button', { name: 'מחיקה' }))
+
+    expect(await screen.findByRole('dialog', { name: 'העברת לקוח לארכיון' })).toBeTruthy()
+    expect(screen.getByText(/לא ניתן למחוק אותו לצמיתות/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'העבר לארכיון' }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/clients/1/archive'))
+    expect(screen.queryByText('Active Client')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ארכיון' }))
+    const archivedCard = (await screen.findByText('Active Client')).closest('article')
+    fireEvent.click(within(archivedCard).getByRole('button', { name: 'שחזור לקוח' }))
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/clients/1/restore'))
+    expect(screen.queryByText('Active Client')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'לקוחות פעילים' }))
+    expect(await screen.findByText('Active Client')).toBeTruthy()
+  })
+
+  it('keeps archived clients out of the new-content client selector', async () => {
+    mockArchiveApi()
+    const { container } = render(<MemoryRouter initialEntries={['/content']}>
+      <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+    await screen.findByText('Active history')
+    fireEvent.click(screen.getByRole('button', { name: 'יצירת תוכן חדש' }))
+
+    const createForm = container.querySelector('.creation-modal-dialog form')
+    const clientSelector = createForm.querySelector('select[name="clientId"]')
+    expect(within(clientSelector).getByText('Active Client')).toBeTruthy()
+    expect(within(clientSelector).queryByText('Archived Client')).toBeNull()
+  })
+})
+
 describe('CLIENT recent content navigation', () => {
   afterEach(() => { cleanup(); vi.clearAllMocks() })
 

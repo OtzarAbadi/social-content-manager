@@ -347,7 +347,7 @@ public class ContentService {
     }
 
     public boolean clientExists(Long clientId) {
-        boolean exists = clientId != null && clientRepository.findById(clientId).isPresent();
+        boolean exists = clientId != null && clientRepository.findActiveById(clientId).isPresent();
         logger.info("Client lookup for content creation: clientId={}, found={}", clientId, exists);
         return exists;
     }

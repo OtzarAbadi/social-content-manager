@@ -14,6 +14,7 @@ import javax.validation.Valid;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/clients")
@@ -44,6 +45,45 @@ public class ClientController {
         return ResponseEntity.ok(authService.findClientForUser(user)
                 .map(Collections::singletonList)
                 .orElseGet(Collections::emptyList));
+    }
+
+    @GetMapping("/archived")
+    public ResponseEntity<List<Client>> getArchivedClients(@CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(clientService.findArchived());
+    }
+
+    @GetMapping("/{id}/content-count")
+    public ResponseEntity<?> getClientContentCount(@PathVariable Long id,
+                                                    @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return clientService.contentCount(id)
+                .<ResponseEntity<?>>map(count -> ResponseEntity.ok(Map.of("count", count)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/archive")
+    public ResponseEntity<Client> archiveClient(@PathVariable Long id,
+                                                @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return clientService.archive(id).map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<Client> restoreClient(@PathVariable Long id,
+                                                @CookieValue(value = "token", required = false) String token) {
+        Optional<User> currentUser = authService.findUserByToken(token);
+        if (currentUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authService.isAdmin(currentUser.get())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return clientService.restore(id).map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @RequestMapping(value = "/{id}", method = RequestMethod.GET)
@@ -116,8 +156,12 @@ public class ClientController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        if (!clientService.delete(id)) {
+        ClientService.DeleteResult result = clientService.delete(id);
+        if (result == ClientService.DeleteResult.NOT_FOUND) {
             return ResponseEntity.notFound().build();
+        }
+        if (result == ClientService.DeleteResult.HAS_CONTENT) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
         return ResponseEntity.noContent().build();

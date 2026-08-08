@@ -1797,6 +1797,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 3px solid rgba(185,103,93,.3);
   outline-offset: 3px;
 }
+.archived-client-badge { display: inline-flex; padding: 4px 9px; border: 1px solid #CDBDAA; border-radius: 999px; color: #6F6255; background: #F2ECE4; font-size: .75rem; font-weight: 800; }
+.client-archive-confirmation { max-width: 560px; }
+.client-archive-confirmation p { color: var(--text-soft); line-height: 1.7; }
 .overview-card time { color: var(--text-soft); font-size: .76rem; }
 .overview-card p { margin: 8px 0 0; font-size: .86rem; }
 .workspace-tabs { width: 100%; padding: 8px; border-bottom: 1px solid var(--border); border-radius: 0; background: #fff; }

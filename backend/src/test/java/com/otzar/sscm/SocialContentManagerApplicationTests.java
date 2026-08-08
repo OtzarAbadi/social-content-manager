@@ -386,6 +386,77 @@ class SocialContentManagerApplicationTests {
     }
 
     @Test
+    void clientWithContentCannotBePermanentlyDeletedAndContentIsUntouched() throws Exception {
+        Client client = createClient(2L);
+        Content content = new Content();
+        content.setClientId(client.getClient_id());
+        content.setTitle("Preserved client content");
+        content.setContent_type("TEXT");
+        content.setStatus(ContentStatus.DRAFT);
+        contentRepository.save(content);
+
+        mockMvc.perform(delete("/clients/{id}", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isConflict());
+
+        org.junit.jupiter.api.Assertions.assertTrue(clientRepository.findById(client.getClient_id()).isPresent());
+        org.junit.jupiter.api.Assertions.assertTrue(contentRepository.findById(content.getContent_id()).isPresent());
+    }
+
+    @Test
+    void adminCanArchiveAndRestoreClientWithoutChangingContentRelationship() throws Exception {
+        Client client = createClient(2L);
+        Content content = new Content();
+        content.setClientId(client.getClient_id());
+        content.setTitle("Archived history");
+        content.setContent_type("TEXT");
+        content.setStatus(ContentStatus.DRAFT);
+        contentRepository.save(content);
+
+        mockMvc.perform(put("/clients/{id}/archive", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(true));
+        org.junit.jupiter.api.Assertions.assertTrue(clientRepository.findActiveById(client.getClient_id()).isEmpty());
+        org.junit.jupiter.api.Assertions.assertEquals(client.getClient_id(),
+                contentRepository.findById(content.getContent_id()).orElseThrow().getClientId());
+
+        mockMvc.perform(put("/clients/{id}/restore", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.archived").value(false));
+        org.junit.jupiter.api.Assertions.assertTrue(clientRepository.findActiveById(client.getClient_id()).isPresent());
+    }
+
+    @Test
+    void archivedClientIsExcludedFromActiveListAndCannotReceiveNewContent() throws Exception {
+        Client client = createClient(2L);
+        mockMvc.perform(put("/clients/{id}/archive", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/clients").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.client_id == " + client.getClient_id() + ")]").isEmpty());
+        mockMvc.perform(get("/clients/archived").cookie(adminCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.client_id == " + client.getClient_id() + ")]").exists());
+        mockMvc.perform(post("/contents").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clientId\":" + client.getClient_id()
+                                + ",\"title\":\"Forbidden archived content\",\"content_type\":\"TEXT\"}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/clients/{id}/restore", client.getClient_id()).cookie(adminCookie))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void clientCannotArchiveOrRestoreClients() throws Exception {
+        Client client = createClient(3L);
+        mockMvc.perform(put("/clients/{id}/archive", client.getClient_id()).cookie(clientCookie))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/clients/{id}/restore", client.getClient_id()).cookie(clientCookie))
+                .andExpect(status().isForbidden());
+        org.junit.jupiter.api.Assertions.assertFalse(clientRepository.findById(client.getClient_id()).orElseThrow().isArchived());
+    }
+
+    @Test
     void deletingClientNeverDeletesAdminUser() throws Exception {
         Client client = new Client();
         client.setUser_id(1L);

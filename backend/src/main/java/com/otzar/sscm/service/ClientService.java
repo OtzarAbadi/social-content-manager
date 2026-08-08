@@ -31,6 +31,10 @@ public class ClientService {
         return clientRepository.findAll();
     }
 
+    public List<Client> findArchived() {
+        return clientRepository.findArchived();
+    }
+
     public Optional<Client> findById(Long id) {
         return clientRepository.findById(id);
     }
@@ -41,7 +45,7 @@ public class ClientService {
 
     public boolean isLinkedToUsername(Long clientId, String username) {
         if (clientId == null || username == null) return false;
-        return clientRepository.findById(clientId)
+        return clientRepository.findActiveById(clientId)
                 .flatMap(client -> userRepository.findById(client.getUser_id()))
                 .map(User::getUsername)
                 .map(linkedUsername -> username.equalsIgnoreCase(linkedUsername))
@@ -64,6 +68,7 @@ public class ClientService {
         client.setAdmin_id(request.getAdminId());
         client.setBusiness_name(request.getBusinessName());
         client.setPhone(request.getPhone());
+        client.setArchived(false);
 
         return clientRepository.save(client);
     }
@@ -99,14 +104,17 @@ public class ClientService {
     }
 
     @Transactional
-    public boolean delete(Long id) {
+    public DeleteResult delete(Long id) {
         Optional<Client> existingClient = clientRepository.findById(id);
 
         if (existingClient.isEmpty()) {
-            return false;
+            return DeleteResult.NOT_FOUND;
         }
 
         Client client = existingClient.get();
+        if (clientRepository.countContent(id) > 0) {
+            return DeleteResult.HAS_CONTENT;
+        }
         Optional<User> associatedUser = userRepository.findById(client.getUser_id());
         boolean canDeleteAssociatedUser = associatedUser
                 .filter(user -> "CLIENT".equalsIgnoreCase(user.getRole()))
@@ -117,7 +125,37 @@ public class ClientService {
         if (canDeleteAssociatedUser) {
             userRepository.delete(associatedUser.get());
         }
-        return true;
+        return DeleteResult.DELETED;
+    }
+
+    @Transactional
+    public Optional<Client> archive(Long id) {
+        return clientRepository.findById(id).map(client -> {
+            client.setArchived(true);
+            userRepository.findById(client.getUser_id()).ifPresent(user -> {
+                if ("CLIENT".equalsIgnoreCase(user.getRole())) {
+                    user.setToken("");
+                    userRepository.save(user);
+                }
+            });
+            return clientRepository.save(client);
+        });
+    }
+
+    @Transactional
+    public Optional<Client> restore(Long id) {
+        return clientRepository.findById(id).map(client -> {
+            client.setArchived(false);
+            return clientRepository.save(client);
+        });
+    }
+
+    public Optional<Long> contentCount(Long id) {
+        return clientRepository.findById(id).map(client -> clientRepository.countContent(id));
+    }
+
+    public enum DeleteResult {
+        DELETED, NOT_FOUND, HAS_CONTENT
     }
 
     private String valueOrFallback(String value, String fallback) {

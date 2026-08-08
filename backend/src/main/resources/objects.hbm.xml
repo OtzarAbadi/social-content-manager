@@ -22,6 +22,7 @@
         <property name="admin_id" column="admin_id" type="long"/>
         <property name="business_name" column="business_name" type="string" not-null="true"/>
         <property name="phone" column="phone" type="string"/>
+        <property name="archived" column="archived" type="boolean" not-null="true"/>
     </class>
 
     <class name="com.otzar.sscm.entities.Content" table="contents">

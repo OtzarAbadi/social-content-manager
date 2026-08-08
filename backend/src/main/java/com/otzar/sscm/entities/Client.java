@@ -9,6 +9,7 @@ public class Client {
 
     private String business_name;
     private String phone;
+    private boolean archived;
 
     // getters & setters
     public Long getClient_id() { return client_id; }
@@ -25,4 +26,7 @@ public class Client {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
 }

@@ -59,7 +59,9 @@ public class UserService {
 
         User user = userRepository.findByUsername(username).orElse(null);
 
-        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())
+                || ("CLIENT".equalsIgnoreCase(user.getRole())
+                && userRepository.isArchivedClientUser(user.getUser_id()))) {
             return null;
         }
 
@@ -72,6 +74,11 @@ public class UserService {
             return null;
         }
 
-        return userRepository.findByToken(token).orElse(null);
+        User user = userRepository.findByToken(token).orElse(null);
+        if (user != null && "CLIENT".equalsIgnoreCase(user.getRole())
+                && userRepository.isArchivedClientUser(user.getUser_id())) {
+            return null;
+        }
+        return user;
     }
 }

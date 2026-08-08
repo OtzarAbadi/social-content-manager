@@ -19,7 +19,15 @@ public class ClientRepository {
     }
 
     public List<Client> findAll() {
-        return persist.loadList(Client.class);
+        return persist.getQuerySession()
+                .createQuery("FROM Client WHERE archived = false ORDER BY client_id", Client.class)
+                .list();
+    }
+
+    public List<Client> findArchived() {
+        return persist.getQuerySession()
+                .createQuery("FROM Client WHERE archived = true ORDER BY client_id", Client.class)
+                .list();
     }
 
     public Optional<Client> findById(Long clientId) {
@@ -31,10 +39,24 @@ public class ClientRepository {
 
     public Optional<Client> findByUserId(Long userId) {
         return Optional.ofNullable(persist.getQuerySession()
-                .createQuery("FROM Client WHERE user_id = :userId", Client.class)
+                .createQuery("FROM Client WHERE user_id = :userId AND archived = false", Client.class)
                 .setParameter("userId", userId)
                 .setMaxResults(1)
                 .uniqueResult());
+    }
+
+    public Optional<Client> findActiveById(Long clientId) {
+        return Optional.ofNullable(persist.getQuerySession()
+                .createQuery("FROM Client WHERE client_id = :clientId AND archived = false", Client.class)
+                .setParameter("clientId", clientId)
+                .uniqueResult());
+    }
+
+    public long countContent(Long clientId) {
+        return persist.getQuerySession()
+                .createQuery("SELECT COUNT(*) FROM Content WHERE clientId = :clientId", Long.class)
+                .setParameter("clientId", clientId)
+                .uniqueResult();
     }
 
     public Client save(Client client) {

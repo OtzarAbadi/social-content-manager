@@ -46,6 +46,22 @@ public class UserRepository {
                 .setMaxResults(1).uniqueResultOptional();
     }
 
+    public boolean isActiveClientUser(Long userId) {
+        Long count = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Client WHERE user_id = :userId AND archived = false", Long.class)
+                .setParameter("userId", userId)
+                .uniqueResult();
+        return count > 0;
+    }
+
+    public boolean isArchivedClientUser(Long userId) {
+        Long count = persist.getQuerySession().createQuery(
+                        "SELECT COUNT(*) FROM Client WHERE user_id = :userId AND archived = true", Long.class)
+                .setParameter("userId", userId)
+                .uniqueResult();
+        return count > 0 && !isActiveClientUser(userId);
+    }
+
     public User save(User user) {
         persist.save(user);
         return user;
