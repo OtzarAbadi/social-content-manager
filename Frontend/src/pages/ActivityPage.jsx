@@ -3,6 +3,7 @@ import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Skeleton from '../components/Skeleton.jsx'
 import { getActivity } from '../api/activity.js'
+import api from '../services/api.js'
 import { ActivityIcon, getActivityDesign } from '../components/activityDesign.js'
 
 const groupOrder = ['today', 'yesterday', 'previous']
@@ -43,6 +44,9 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [profile, setProfile] = useState(null)
+  const [clients, setClients] = useState([])
+  const [selectedClientId, setSelectedClientId] = useState('')
 
   const loadActivity = useCallback(async (signal) => {
     setLoading(true)
@@ -65,11 +69,28 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
     return () => controller.abort()
   }, [loadActivity])
 
-  const groups = useMemo(() => activities.reduce((result, activity) => {
+  useEffect(() => {
+    let active = true
+    api.get('/users/me').then(async ({ data }) => {
+      if (!active) return
+      setProfile(data)
+      if (data?.role === 'ADMIN') {
+        const response = await api.get('/clients')
+        if (active) setClients(response.data)
+      }
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  const visibleActivities = useMemo(() => selectedClientId
+    ? activities.filter((activity) => Number(activity.clientId) === Number(selectedClientId))
+    : activities, [activities, selectedClientId])
+
+  const groups = useMemo(() => visibleActivities.reduce((result, activity) => {
     const group = dateGroup(activity.occurredAt)
     result[group].push(activity)
     return result
-  }, { today: [], yesterday: [], previous: [] }), [activities])
+  }, { today: [], yesterday: [], previous: [] }), [visibleActivities])
 
   return <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
     <section className="activity-page" dir="rtl" aria-labelledby="activity-page-title">
@@ -83,18 +104,26 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
         </button>
       </div>
       <p className="activity-page-intro">כל השינויים האחרונים בתוכן, באישורים ובתכנון הפרסום.</p>
+      {profile?.role === 'ADMIN' && <div className="activity-filters">
+        <label>לקוח
+          <select aria-label="סינון פעילות לפי לקוח" value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
+            <option value="">כל הלקוחות</option>
+            {clients.map((client) => <option key={client.client_id ?? client.clientId} value={client.client_id ?? client.clientId}>{client.business_name}</option>)}
+          </select>
+        </label>
+      </div>}
 
       {loading && <Skeleton rows={4} className="page-skeleton" />}
       {!loading && error && <div className="activity-page-state activity-page-error" role="alert">
         <p>{error}</p>
         <button type="button" className="secondary-button" onClick={() => loadActivity()}>נסו שוב</button>
       </div>}
-      {!loading && !error && activities.length === 0 && <div className="activity-page-state">
-        <strong>עדיין אין פעילות להצגה</strong>
-        <p>שינויים בתוכן יופיעו כאן.</p>
+      {!loading && !error && visibleActivities.length === 0 && <div className="activity-page-state">
+        <strong>{selectedClientId ? 'אין פעילות להצגה עבור הלקוח שנבחר' : 'עדיין אין פעילות להצגה'}</strong>
+        {!selectedClientId && <p>שינויים בתוכן יופיעו כאן.</p>}
       </div>}
 
-      {!loading && !error && activities.length > 0 && <div className="activity-groups">
+      {!loading && !error && visibleActivities.length > 0 && <div className="activity-groups">
         {groupOrder.map((groupKey) => groups[groupKey].length > 0 && <section className="activity-group" key={groupKey} aria-labelledby={`activity-group-${groupKey}`}>
           <h3 id={`activity-group-${groupKey}`}>{groupLabels[groupKey]}</h3>
           <div className="activity-timeline">

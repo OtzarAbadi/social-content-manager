@@ -1551,7 +1551,7 @@ input, select, textarea { min-height: 44px; border-color: #CDB89E; background: #
 .content-card .status-badge-ui { flex: 0 0 auto; padding: 7px 11px; }
 .content-card .entity-actions { justify-content: flex-start; padding-top: 14px; border-top: 1px solid #EEE4D8; }
 
-.management-section:has(#clients-title) .entity-card { grid-template-columns: auto minmax(0,1fr) auto; padding: 19px; }
+.management-section:has(#clients-title) .entity-card { grid-template-columns: minmax(0,1fr) auto; padding: 19px; text-align: right; }
 .management-section:has(#clients-title) .entity-title-row h3 { font-size: 1.3rem; }
 .management-section:has(#clients-title) .metadata-row span:nth-child(-n+2) { display: none; }
 .management-section:has(#clients-title) .metadata-row { color: #746557; font-size: .84rem; }
@@ -1698,6 +1698,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .activity-page-toolbar h2 { margin: 2px 0 0; color: var(--text); font-size: 1.75rem; }
 .activity-page-toolbar p { margin: 0; }
+.activity-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.activity-filters label { display: grid; min-width: min(260px, 100%); gap: 6px; color: var(--muted); font-weight: 700; }
+.activity-filters select { min-height: 42px; }
 .activity-page-intro { margin: -8px 0 2px; color: var(--text-soft); }
 .activity-groups { display: grid; gap: 22px; }
 .activity-group { display: grid; gap: 12px; }

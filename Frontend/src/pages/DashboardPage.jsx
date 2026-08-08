@@ -16,6 +16,7 @@ import ContentMediaCarousel from '../components/ContentMediaCarousel.jsx'
 import SelectedMediaPreview from '../components/SelectedMediaPreview.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 import { appendMediaFiles, legacyContentType, mediaAcceptForMode, MIXED_MEDIA_MODE, validateMediaSelection } from '../utils/contentMediaForm.js'
+import { emptyContentFilters, filterContents } from '../utils/contentFilters.js'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
@@ -104,10 +105,6 @@ function getClientId(client) {
   return client.client_id ?? client.clientId
 }
 
-function getClientInitial(client) {
-  return client.business_name?.trim()?.charAt(0) || '#'
-}
-
 function getProfileInitials(profile) {
   const name = profile.fullName || profile.username || 'משתמש'
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -153,11 +150,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [clientSearch, setClientSearch] = useState('')
   const [commentSearch, setCommentSearch] = useState('')
   const [dashboardClientId, setDashboardClientId] = useState('')
-  const [contentFilter, setContentFilter] = useState({
-    contentId: '',
-    clientId: '',
-    status: '',
-  })
+  const [contentFilter, setContentFilter] = useState(emptyContentFilters)
   const [commentsContentId, setCommentsContentId] = useState('')
   const [filteredResults, setFilteredResults] = useState({
     clients: false,
@@ -256,6 +249,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
   const isClient = profile.role === 'CLIENT'
   const isAdmin = profile.role === 'ADMIN'
+  const visibleContents = useMemo(() => filterContents(contents, contentFilter, clientById), [contents, contentFilter, clientById])
   function navigateToPanel(panel) {
     onNavigate(routeByPanel[panel])
   }
@@ -658,82 +652,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     }))
   }
 
-  async function handleFindContentById() {
-    if (!contentFilter.contentId) {
-      return
-    }
-
-    setLoading((current) => ({ ...current, contents: true }))
-    setErrors((current) => ({ ...current, contents: '' }))
-
-    try {
-      const response = await api.get(`/contents/${contentFilter.contentId}`)
-      setContents([response.data])
-      showFilteredResults('contents')
-      showNotice(`נטען תוכן #${contentFilter.contentId}`)
-    } catch {
-      setContents([])
-      showFilteredResults('contents')
-      setErrors((current) => ({
-        ...current,
-        contents: 'לא נמצא תוכן עם המזהה הזה',
-      }))
-    } finally {
-      setLoading((current) => ({ ...current, contents: false }))
-    }
-  }
-
-  async function handleLoadContentsByClient(clientId = contentFilter.clientId) {
-    if (!clientId) {
-      return
-    }
-
-    setLoading((current) => ({ ...current, contents: true }))
-    setErrors((current) => ({ ...current, contents: '' }))
-
-    try {
-      const response = await api.get(`/contents/client/${clientId}`)
-      setContents(sortContentsNewest(response.data))
-      setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
-      navigateToPanel('contents')
-      showFilteredResults('contents')
-      showNotice(`נטענו תכנים של לקוח #${clientId}`)
-    } catch {
-      setContents([])
-      showFilteredResults('contents')
-      setErrors((current) => ({
-        ...current,
-        contents: 'לא נמצא לקוח עם המזהה הזה',
-      }))
-    } finally {
-      setLoading((current) => ({ ...current, contents: false }))
-    }
-  }
-
-  async function handleLoadContentsByStatus(status = contentFilter.status) {
-    if (!status) {
-      return
-    }
-
-    setLoading((current) => ({ ...current, contents: true }))
-    setErrors((current) => ({ ...current, contents: '' }))
-
-    try {
-      const response = await api.get(`/contents/status/${status}`)
-      setContents(sortContentsNewest(response.data))
-      setContentFilter((current) => ({ ...current, status }))
-      navigateToPanel('contents')
-      showFilteredResults('contents')
-      showNotice(`נטענו תכנים בסטטוס ${statusLabelByValue[status]}`)
-    } catch {
-      showFilteredResults('contents')
-      setErrors((current) => ({
-        ...current,
-        contents: 'לא הצלחנו לטעון תכנים לפי סטטוס',
-      }))
-    } finally {
-      setLoading((current) => ({ ...current, contents: false }))
-    }
+  function handleLoadContentsByClient(clientId) {
+    if (!clientId) return
+    setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
+    navigateToPanel('contents')
   }
 
   function startContentEdit(content) {
@@ -1133,9 +1055,6 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
                     return (
                       <article className="entity-card" key={clientId}>
-                        <div className="entity-mark" aria-hidden="true">
-                          {getClientInitial(client)}
-                        </div>
                         <div className="entity-details">
                           <div className="entity-title-row">
                             <h3>{client.business_name}</h3>
@@ -1359,21 +1278,6 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
               </div>
 
               <div className="tool-row tool-row-wide filter-grid">
-                <div className="filter-control">
-                  <label>
-                    מזהה תוכן
-                    <input
-                      min="1"
-                      name="contentId"
-                      type="number"
-                      value={contentFilter.contentId}
-                      onChange={handleContentFilterChange}
-                    />
-                  </label>
-                  <button type="button" className="secondary-button" onClick={handleFindContentById}>
-                    חיפוש לפי מזהה תוכן
-                  </button>
-                </div>
                 {isAdmin && (
                   <div className="filter-control">
                     <label>
@@ -1383,7 +1287,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         value={contentFilter.clientId}
                         onChange={handleContentFilterChange}
                       >
-                        <option value="">בחירת לקוח</option>
+                        <option value="">כל הלקוחות</option>
                         {clients.map((client) => (
                           <option value={getClientId(client)} key={getClientId(client)}>
                             {client.business_name}
@@ -1391,13 +1295,6 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                         ))}
                       </select>
                     </label>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => handleLoadContentsByClient()}
-                    >
-                      חיפוש לפי לקוח
-                    </button>
                   </div>
                 )}
                 <div className="filter-control">
@@ -1408,7 +1305,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                       value={contentFilter.status}
                       onChange={handleContentFilterChange}
                     >
-                      <option value="">בחירת סטטוס</option>
+                      <option value="">כל הסטטוסים</option>
                       {statusOptions.map((status) => (
                         <option value={status.value} key={status.value}>
                           {status.label}
@@ -1416,19 +1313,26 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                       ))}
                     </select>
                   </label>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => handleLoadContentsByStatus()}
-                  >
-                    חיפוש לפי סטטוס
-                  </button>
                 </div>
+                <div className="filter-control">
+                  <label>סוג תוכן
+                    <select name="contentType" value={contentFilter.contentType} onChange={handleContentFilterChange}>
+                      <option value="">כל סוגי התוכן</option>
+                      {contentTypeOptions.map((type) => <option value={type.value} key={type.value}>{type.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div className="filter-control compact-search">
+                  <label>חיפוש
+                    <input name="search" type="search" value={contentFilter.search} onChange={handleContentFilterChange} placeholder="כותרת, תיאור, לקוח, סטטוס או סוג" />
+                  </label>
+                </div>
+                <button type="button" className="ghost-button" onClick={() => setContentFilter(emptyContentFilters)}>נקה סינונים</button>
               </div>
 
               {loading.contents && <Skeleton rows={3} />}
               {errors.contents && <p className="entity-state entity-state-error">{errors.contents}</p>}
-              {!loading.contents && !errors.contents && contents.length === 0 && (
+              {!loading.contents && !errors.contents && visibleContents.length === 0 && (
                 <EmptyState icon={FilePlus2} title="עדיין אין תוכן" description="צרו תוכן חדש והתחילו לתכנן את הפרסום הבא." actionLabel="יצירת תוכן חדש" onAction={() => setShowCreateForm((current) => ({ ...current, contents: true }))} />
               )}
 
@@ -1442,7 +1346,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {!resultsHidden.contents && (
                 <div className="entity-list">
-                  {contents.map((content) => {
+                  {visibleContents.map((content) => {
                     const contentId = getContentId(content)
                     const contentClientId = content.clientId ?? content.client_id
                     const isEditing = editingContentId === contentId
