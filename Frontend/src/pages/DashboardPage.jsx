@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FilePlus2, MessageCircle, Users } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import ContentVersionHistoryModal from '../components/ContentVersionHistoryModal.jsx'
@@ -121,6 +121,7 @@ const sessionInstagramPublications = new Map()
 
 function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState({
     id: '',
     clientId: '',
@@ -418,11 +419,28 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     const params = new URLSearchParams(location.search)
     const highlightId = params.get('highlightId')
     const isCommentsTab = params.get('tab') === 'comments'
+    if (loading.contents || (isCommentsTab && loading.comments)) return undefined
+
+    const requestedContentId = Number(contentMatch[1])
+    const requestedContent = contents.find((content) => Number(getContentId(content)) === requestedContentId)
+    if (!requestedContent) {
+      setHighlightedElementId('')
+      setNotice('לא ניתן לפתוח את התוכן המבוקש. ייתכן שהוא נמחק או שאין לך הרשאה לצפות בו.')
+      return undefined
+    }
+
+    if (isCommentsTab && highlightId && !comments.some((comment) => Number(comment.commentId) === Number(highlightId)
+      && Number(comment.contentId) === requestedContentId)) {
+      setHighlightedElementId('')
+      setNotice('לא ניתן לפתוח את התגובה המבוקשת. ייתכן שהיא נמחקה או שאין לך הרשאה לצפות בה.')
+      return undefined
+    }
+
+    if (isCommentsTab && !highlightId) return undefined
     const targetId = isCommentsTab
       ? `comment-${highlightId}`
       : `content-${highlightId || contentMatch[1]}`
 
-    if ((isCommentsTab && loading.comments) || (!isCommentsTab && loading.contents)) return undefined
     let frameId
     let highlightTimer
     let attempts = 0
@@ -455,8 +473,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       if (highlightTimer) window.clearTimeout(highlightTimer)
     }
   }, [
-    comments.length,
-    contents.length,
+    comments,
+    contents,
     loading.comments,
     loading.contents,
     location.pathname,
@@ -656,6 +674,18 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     if (!clientId) return
     setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
     navigateToPanel('contents')
+  }
+
+  function openCommentContent(comment, content) {
+    if (!content || !comment.contentId || Number(getContentId(content)) !== Number(comment.contentId)) return
+    navigate(`/content/${comment.contentId}?highlightId=${comment.contentId}`)
+  }
+
+  function handleCommentKeyDown(event, comment, content) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openCommentContent(comment, content)
+    }
   }
 
   function startContentEdit(content) {
@@ -1813,7 +1843,11 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                     const content = contents.find((item) => Number(getContentId(item)) === Number(comment.contentId))
                     const customer = clientById.get(Number(content?.clientId ?? content?.client_id))
                     const author = userById.get(Number(comment.userId))
-                    return <article id={`comment-${comment.commentId}`} className={`comment-item ${highlightedElementId === `comment-${comment.commentId}` ? 'deep-link-highlight' : ''}`} key={comment.commentId}>
+                    const clickable = Boolean(content && comment.contentId && Number(getContentId(content)) === Number(comment.contentId))
+                    return <article id={`comment-${comment.commentId}`} className={`comment-item ${clickable ? 'comment-item-clickable' : ''} ${highlightedElementId === `comment-${comment.commentId}` ? 'deep-link-highlight' : ''}`} key={comment.commentId}
+                      role={clickable ? 'link' : undefined} tabIndex={clickable ? 0 : undefined}
+                      onClick={clickable ? () => openCommentContent(comment, content) : undefined}
+                      onKeyDown={clickable ? (event) => handleCommentKeyDown(event, comment, content) : undefined}>
                       <div>
                         <h3>{author?.full_name || author?.username || 'משתמש'}</h3>
                         <p>{comment.commentText}</p>

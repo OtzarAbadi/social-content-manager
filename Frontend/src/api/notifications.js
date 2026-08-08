@@ -6,6 +6,10 @@ export function getNotificationPath(notification) {
   const contentId = notification.relatedContentId ?? notification.contentId
   if (notification.type === 'NEW_ACTIVITY') return '/activity'
   if (!contentId) return null
+  if (notification.type === 'COMMENT_ADDED') {
+    const commentId = notification.entityId
+    return `/content/${contentId}?tab=comments${commentId ? `&highlightId=${commentId}` : ''}`
+  }
   return `/content/${contentId}?highlightId=${contentId}`
 }
 

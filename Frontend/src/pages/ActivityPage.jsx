@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import Skeleton from '../components/Skeleton.jsx'
@@ -41,6 +42,7 @@ function formatActivityDate(value) {
 }
 
 function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
+  const navigate = useNavigate()
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -92,6 +94,18 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
     return result
   }, { today: [], yesterday: [], previous: [] }), [visibleActivities])
 
+  function openRelatedContent(activity) {
+    if (!activity.contentId) return
+    navigate(`/content/${activity.contentId}?highlightId=${activity.contentId}`)
+  }
+
+  function handleActivityKeyDown(event, activity) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openRelatedContent(activity)
+    }
+  }
+
   return <PageShell activeRoute={activeRoute} routes={routes} onNavigate={onNavigate} isAuthenticated={isAuthenticated} onLogout={onLogout}>
     <section className="activity-page" dir="rtl" aria-labelledby="activity-page-title">
       <div className="activity-page-toolbar">
@@ -130,7 +144,11 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
             {groups[groupKey].map((activity) => {
               const design = getActivityDesign(activity.type)
               const formatted = formatActivityDate(activity.occurredAt)
-              return <article className="activity-item" key={activity.activityId}>
+              const clickable = Boolean(activity.contentId)
+              return <article className={`activity-item ${clickable ? 'activity-item-clickable' : ''}`} key={activity.activityId}
+                role={clickable ? 'link' : undefined} tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => openRelatedContent(activity) : undefined}
+                onKeyDown={clickable ? (event) => handleActivityKeyDown(event, activity) : undefined}>
                 <span className={`activity-icon activity-icon-${activity.type}`}><ActivityIcon type={activity.type} /></span>
                 <div className="activity-item-body">
                   <div className="activity-item-heading">
@@ -149,9 +167,9 @@ function ActivityPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogo
                       <span>{formatted.date}</span>
                       {formatted.time && <span>{formatted.time}</span>}
                     </time>
-                    <button type="button" className="activity-open-content" onClick={() => onNavigate('content')}>
+                    {clickable && <button type="button" className="activity-open-content" onClick={(event) => { event.stopPropagation(); openRelatedContent(activity) }}>
                       פתח את התוכן <span aria-hidden="true">←</span>
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </article>

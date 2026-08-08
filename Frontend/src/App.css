@@ -1701,6 +1701,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
 .activity-filters label { display: grid; min-width: min(260px, 100%); gap: 6px; color: var(--muted); font-weight: 700; }
 .activity-filters select { min-height: 42px; }
+.activity-item-clickable, .comment-item-clickable { cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.activity-item-clickable:hover, .comment-item-clickable:hover { border-color: #BFA98F; box-shadow: var(--shadow-card); }
+.activity-item-clickable:focus-visible, .comment-item-clickable:focus-visible { outline: 3px solid rgba(128,102,157,.35); outline-offset: 3px; }
 .activity-page-intro { margin: -8px 0 2px; color: var(--text-soft); }
 .activity-groups { display: grid; gap: 22px; }
 .activity-group { display: grid; gap: 12px; }
