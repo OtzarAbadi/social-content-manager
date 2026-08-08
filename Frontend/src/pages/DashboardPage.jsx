@@ -1627,7 +1627,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                               {statusActions.map((action) => (
                                 <button
                                   type="button"
-                                  className="secondary-button small-button"
+                                  className={`${action.value === 'WAITING_APPROVAL' ? 'primary-button content-approval-action' : 'secondary-button'} small-button`}
                                   key={action.value}
                                   onClick={() => handleUpdateStatus(contentId, action.value)}
                                 >
@@ -1659,7 +1659,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                               {isAdmin && (
                                 <button
                                   type="button"
-                                  className="danger-button small-button"
+                                  className="content-delete-action small-button"
                                   onClick={() => handleDeleteContent(contentId)}
                                 >
                                   מחיקה

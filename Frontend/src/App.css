@@ -1763,6 +1763,40 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .overview-card button { display: flex; width: 100%; min-height: 40px; padding: 7px 0; border: 0; border-top: 1px solid #E4D8C9; align-items: center; justify-content: space-between; gap: 10px; color: var(--text); background: transparent; text-align: start; cursor: pointer; }
 .overview-card button:hover { color: var(--primary-dark); }
 .overview-card .recent-content-link:focus-visible { border-radius: 6px; outline: 3px solid rgba(128,102,157,.35); outline-offset: 2px; }
+.content-card .content-approval-action {
+  border-color: #9A795A;
+  color: #FFFDFC;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  box-shadow: 0 8px 18px rgba(122,96,72,.24);
+  font-weight: 800;
+}
+.content-card .content-approval-action:hover:not(:disabled) {
+  border-color: #795B42;
+  background: linear-gradient(135deg, #B99265, #795B42);
+  box-shadow: 0 12px 24px rgba(105,76,49,.3);
+  transform: translateY(-2px);
+}
+.content-card .content-approval-action:focus-visible {
+  outline: 3px solid rgba(154,121,90,.38);
+  outline-offset: 3px;
+}
+.content-card .content-delete-action {
+  border: 1px solid #E4CAC5;
+  color: #945C55;
+  background: rgba(255,248,247,.72);
+  box-shadow: none;
+  font-weight: 700;
+}
+.content-card .content-delete-action:hover:not(:disabled),
+.content-card .content-delete-action:focus-visible {
+  border-color: #B9675D;
+  color: #873E36;
+  background: #F8E8E5;
+}
+.content-card .content-delete-action:focus-visible {
+  outline: 3px solid rgba(185,103,93,.3);
+  outline-offset: 3px;
+}
 .overview-card time { color: var(--text-soft); font-size: .76rem; }
 .overview-card p { margin: 8px 0 0; font-size: .86rem; }
 .workspace-tabs { width: 100%; padding: 8px; border-bottom: 1px solid var(--border); border-radius: 0; background: #fff; }
