@@ -6,6 +6,7 @@ import {
 import PageShell from '../components/PageShell.jsx'
 import {
   formatAnalyticsChartDate as formatChartDate,
+  mergeAnalyticsTrends,
   showAnalyticsValue as show,
   unavailableAnalyticsValue as unavailable,
 } from '../utils/analyticsFormat.js'
@@ -60,11 +61,11 @@ function Preview({ item, variant = 'thumbnail' }) {
     : <span className={`instagram-media-fallback instagram-media-${variant}`} role="img" aria-label="תצוגה מקדימה אינה זמינה"><ImageOff size={20} aria-hidden="true" /></span>
 }
 
-function TrendChart({ data, dataKey, title, color }) {
+function TrendChart({ data, dataKey, title, color, unavailableMessage = 'אין נתונים זמינים לתקופה שנבחרה.' }) {
   const usable = data.some((row) => row[dataKey] !== null && row[dataKey] !== undefined)
   return <section className="analytics-panel instagram-chart-panel">
     <div className="analytics-panel-title"><h3>{title}</h3></div>
-    {!usable ? <p className="analytics-panel-empty">אין נתונים זמינים לתקופה שנבחרה.</p> :
+    {!usable ? <p className="analytics-panel-empty">{unavailableMessage}</p> :
       <div className="instagram-chart"><ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8ded2" />
@@ -127,7 +128,7 @@ function AnalyticsPage(props) {
   useEffect(() => { Promise.resolve().then(load) }, [load])
   const isAdmin = profile?.role === 'ADMIN'
   const canView = isAdmin || profile?.role === 'CLIENT'
-  const trend = account?.dailyTrend || []
+  const trend = mergeAnalyticsTrends(account?.dailyTrend, media?.dailyTrend)
   const items = media?.items || []
   const availableMetricCards = metricCards.filter(([key]) => account?.[key] !== null && account?.[key] !== undefined)
   const unavailableMetricLabels = metricCards
@@ -168,7 +169,10 @@ function AnalyticsPage(props) {
           <TrendChart data={trend} dataKey="reach" title="חשיפה לאורך זמן" color="#8f6d4f" />
           <TrendChart data={trend} dataKey="views" title="צפיות לאורך זמן" color="#b27468" />
           <TrendChart data={trend} dataKey="totalInteractions" title="אינטראקציות לאורך זמן" color="#617f72" />
-          <TrendChart data={trend} dataKey="netFollowerChange" title="שינוי בעוקבים לאורך זמן" color="#80669d" />
+          <TrendChart data={trend} dataKey="netFollowerChange" title="שינוי בעוקבים לאורך זמן" color="#80669d"
+            unavailableMessage={account?.dailyTrendUnavailableReasons?.netFollowerChange === 'META_DAILY_FOLLOWER_CHANGE_UNAVAILABLE'
+              ? 'Meta אינה מספקת נתוני שינוי יומיים בעוקבים עבור החשבון או התקופה הזו.'
+              : undefined} />
         </div>
         <section className="instagram-top-grid">
           <TopCard title="התוכן עם החשיפה הגבוהה ביותר" item={topReach} />

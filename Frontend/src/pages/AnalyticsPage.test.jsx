@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import AnalyticsPage from './AnalyticsPage.jsx'
 import {
   formatAnalyticsChartDate as formatChartDate,
+  mergeAnalyticsTrends,
   showAnalyticsValue as show,
 } from '../utils/analyticsFormat.js'
 import {
@@ -68,6 +69,14 @@ describe('AnalyticsPage', () => {
     await screen.findByText('1,234')
     expect(screen.getAllByText('אין נתונים זמינים לתקופה שנבחרה.').length).toBeGreaterThan(0)
   })
+  it('explains when Meta rejects daily follower-change data', async () => {
+    getInstagramAccountInsights.mockResolvedValue({
+      ...account,
+      dailyTrendUnavailableReasons: { netFollowerChange: 'META_DAILY_FOLLOWER_CHANGE_UNAVAILABLE' },
+    })
+    renderPage()
+    expect(await screen.findByText('Meta אינה מספקת נתוני שינוי יומיים בעוקבים עבור החשבון או התקופה הזו.')).toBeTruthy()
+  })
   it('updates requests when media filter changes', async () => {
     renderPage(); await screen.findByText('1,234')
     fireEvent.change(screen.getByLabelText('סוג תוכן'), { target: { value: 'IMAGE' } })
@@ -105,6 +114,20 @@ describe('AnalyticsPage', () => {
     expect(captionCells[0].textContent).toBe('  כיתוב עם רווחים  ')
     expect(captionCells.slice(1).every((cell) => cell.textContent === '')).toBe(true)
     expect(rows[1].children[4].textContent).toBe('לא זמין')
+  })
+
+  it('aligns and orders account and media trends without replacing authoritative values', () => {
+    expect(mergeAnalyticsTrends([
+      { date: '2026-07-03T00:00:00Z', reach: 9, views: 0, netFollowerChange: -2 },
+      { date: '2026-07-01T00:00:00Z', reach: 4, totalInteractions: 0, netFollowerChange: 0 },
+    ], [
+      { date: '2026-07-02', views: 12, totalInteractions: 5 },
+      { date: '2026-07-03', views: 99, totalInteractions: 7 },
+    ])).toEqual([
+      { date: '2026-07-01', reach: 4, totalInteractions: 0, netFollowerChange: 0 },
+      { date: '2026-07-02', views: 12, totalInteractions: 5 },
+      { date: '2026-07-03', reach: 9, views: 0, netFollowerChange: -2, totalInteractions: 7 },
+    ])
   })
   it('displays available and zero media views while preserving genuinely unavailable metrics', async () => {
     getInstagramMediaInsights.mockResolvedValue({ items: [

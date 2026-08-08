@@ -67,10 +67,10 @@ class InstagramInsightsServiceTests {
         MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
         server.expect(requestTo(anything())).andRespond(withSuccess(
                 "{\"data\":[" +
-                        "{\"id\":\"image\",\"media_type\":\"IMAGE\"}," +
-                        "{\"id\":\"carousel\",\"media_type\":\"CAROUSEL_ALBUM\"}," +
-                        "{\"id\":\"video\",\"media_type\":\"VIDEO\",\"media_product_type\":\"FEED\"}," +
-                        "{\"id\":\"reel\",\"media_type\":\"VIDEO\",\"media_product_type\":\"REELS\"}]}",
+                        "{\"id\":\"image\",\"media_type\":\"IMAGE\",\"timestamp\":\"2026-07-02T10:00:00Z\"}," +
+                        "{\"id\":\"carousel\",\"media_type\":\"CAROUSEL_ALBUM\",\"timestamp\":\"2026-07-01T10:00:00Z\"}," +
+                        "{\"id\":\"video\",\"media_type\":\"VIDEO\",\"media_product_type\":\"FEED\",\"timestamp\":\"2026-07-03T10:00:00Z\"}," +
+                        "{\"id\":\"reel\",\"media_type\":\"VIDEO\",\"media_product_type\":\"REELS\",\"timestamp\":\"2026-07-02T12:00:00Z\"}]}",
                 MediaType.APPLICATION_JSON));
 
         expectMetric(server, "views", "{\"data\":[{\"name\":\"views\",\"values\":[{\"value\":\"17\"}]}]}");
@@ -93,6 +93,76 @@ class InstagramInsightsServiceTests {
         assertEquals(7, ((Number) ((Map<?,?>) items.get(3)).get("reach")).intValue());
         assertEquals(5, ((Number) ((Map<?,?>) items.get(3)).get("likes")).intValue());
         assertEquals(4.5, ((Number) ((Map<?,?>) items.get(3)).get("averageWatchTime")).doubleValue());
+        java.util.List<?> trend = (java.util.List<?>) result.get("dailyTrend");
+        assertEquals(java.util.List.of("2026-07-01", "2026-07-02", "2026-07-03"), trend.stream()
+                .map(row -> ((Map<?,?>) row).get("date")).toList());
+        assertEquals(40, ((Number) ((Map<?,?>) trend.get(1)).get("views")).intValue());
+        server.verify();
+    }
+
+    @Test
+    void accountDailyTrendKeepsZeroAndSignedFollowerChangesInDateOrder() {
+        RestTemplate rest = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
+        server.expect(requestTo(anything())).andRespond(withSuccess(
+                "{\"id\":\"ig-user\",\"username\":\"studio\"}", MediaType.APPLICATION_JSON));
+        server.expect(times(4), requestTo(anything())).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        expectAccountMetric(server, "reach", "{\"data\":[{\"name\":\"reach\",\"values\":[" +
+                "{\"end_time\":\"2026-07-03T00:00:00Z\",\"value\":9},{\"end_time\":\"2026-07-01T00:00:00Z\",\"value\":0}]}]}");
+        expectAccountMetric(server, "views", "{\"data\":[{\"name\":\"views\",\"values\":[" +
+                "{\"end_time\":\"2026-07-01T08:00:00Z\",\"value\":0},{\"end_time\":\"2026-07-02T08:00:00Z\",\"value\":\"12\"}]}]}");
+        expectAccountMetric(server, "profile_views", "{\"data\":[]}");
+        expectAccountMetric(server, "accounts_engaged", "{\"data\":[]}");
+        expectAccountMetric(server, "total_interactions", "{\"data\":[{\"name\":\"total_interactions\",\"values\":[" +
+                "{\"end_time\":\"2026-07-01T00:00:00Z\",\"value\":0},{\"end_time\":\"2026-07-02T00:00:00Z\",\"value\":5}]}]}");
+        expectAccountMetric(server, "follows_and_unfollows", "{\"data\":[{\"name\":\"follows_and_unfollows\",\"values\":[" +
+                "{\"end_time\":\"2026-07-01T00:00:00Z\",\"value\":{\"follows\":4,\"unfollows\":1}}," +
+                "{\"end_time\":\"2026-07-02T00:00:00Z\",\"value\":{\"follows\":1,\"unfollows\":3}}," +
+                "{\"end_time\":\"2026-07-03T00:00:00Z\",\"value\":{\"follows\":2,\"unfollows\":2}}," +
+                "{\"end_time\":\"2026-07-04T00:00:00Z\",\"value\":{\"follows\":2}}]}]}");
+
+        Map<String,Object> result = service(rest).account(null, null, "day");
+        java.util.List<?> trend = (java.util.List<?>) result.get("dailyTrend");
+        assertEquals(java.util.List.of("2026-07-01", "2026-07-02", "2026-07-03", "2026-07-04"), trend.stream()
+                .map(row -> ((Map<?,?>) row).get("date")).toList());
+        assertEquals(0, ((Number) ((Map<?,?>) trend.get(0)).get("views")).intValue());
+        assertEquals(12, ((Number) ((Map<?,?>) trend.get(1)).get("views")).intValue());
+        assertEquals(0, ((Number) ((Map<?,?>) trend.get(0)).get("totalInteractions")).intValue());
+        assertEquals(3, ((Number) ((Map<?,?>) trend.get(0)).get("netFollowerChange")).intValue());
+        assertEquals(-2, ((Number) ((Map<?,?>) trend.get(1)).get("netFollowerChange")).intValue());
+        assertEquals(0, ((Number) ((Map<?,?>) trend.get(2)).get("netFollowerChange")).intValue());
+        assertNull(((Map<?,?>) trend.get(3)).get("netFollowerChange"));
+        server.verify();
+    }
+
+    @Test
+    void liveFollowerTimeSeriesRejectionReturnsSpecificAvailabilityReason() {
+        RestTemplate rest = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
+        server.expect(requestTo(anything())).andRespond(withSuccess(
+                "{\"id\":\"ig-user\",\"username\":\"studio\"}", MediaType.APPLICATION_JSON));
+        server.expect(times(4), requestTo(anything())).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        for (String metric : java.util.List.of("reach", "views", "profile_views", "accounts_engaged", "total_interactions"))
+            expectAccountMetric(server, metric, "{\"data\":[]}");
+        server.expect(requestTo(anything())).andExpect(queryParam("metric", "follows_and_unfollows"))
+                .andExpect(queryParam("metric_type", "total_value"))
+                .andExpect(queryParam("breakdown", "follow_type"))
+                .andExpect(queryParam("since", "2026-06-30"))
+                .andRespond(withSuccess("{\"data\":[]}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(anything())).andExpect(queryParam("metric", "follows_and_unfollows"))
+                .andExpect(queryParam("metric_type", "time_series"))
+                .andExpect(queryParam("breakdown", "follow_type"))
+                .andExpect(queryParam("since", "2026-06-30"))
+                .andRespond(withBadRequest().body("{\"error\":{\"code\":100,\"type\":\"OAuthException\"," +
+                        "\"message\":\"(#100) The following metric (follows_and_unfollows) is incompatible with the metric type (time_series)\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        Map<String,Object> result = service(rest).account(
+                LocalDate.parse("2026-05-01"), LocalDate.parse("2026-07-29"), "day");
+
+        assertEquals("META_DAILY_FOLLOWER_CHANGE_UNAVAILABLE",
+                ((Map<?,?>) result.get("dailyTrendUnavailableReasons")).get("netFollowerChange"));
+        assertTrue(((java.util.List<?>) result.get("dailyTrend")).isEmpty());
         server.verify();
     }
 
@@ -199,6 +269,14 @@ class InstagramInsightsServiceTests {
         expectMetric(server, "reach,saved,shares,total_interactions,likes,comments",
                 "{\"data\":[{\"name\":\"reach\",\"values\":[{\"value\":7}]}," +
                         "{\"name\":\"likes\",\"values\":[{\"value\":5}]}]}");
+    }
+    private void expectAccountMetric(MockRestServiceServer server, String metric, String trendBody) {
+        server.expect(requestTo(anything())).andExpect(queryParam("metric", metric))
+                .andExpect(queryParam("metric_type", "total_value"))
+                .andRespond(withSuccess("{\"data\":[{\"total_value\":{\"value\":1}}]}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(anything())).andExpect(queryParam("metric", metric))
+                .andExpect(queryParam("metric_type", "time_series"))
+                .andRespond(withSuccess(trendBody, MediaType.APPLICATION_JSON));
     }
     private void expectMetric(MockRestServiceServer server, String metric, String body) {
         server.expect(requestTo(anything())).andExpect(queryParam("metric", metric))

@@ -103,9 +103,12 @@ public class InstagramInsightsService {
         result.put("until", until);
         Map<String, Number> values = new LinkedHashMap<>();
         List<Map<String, Object>> trend = new ArrayList<>();
+        Map<String, String> trendUnavailableReasons = new LinkedHashMap<>();
         for (String metric : ACCOUNT_METRICS) {
             try {
-                Map<String, String> totalParams = insightParams(metric, since, until, period);
+                LocalDate metricSince = "follows_and_unfollows".equals(metric)
+                        ? followerMetricSince(since, until) : since;
+                Map<String, String> totalParams = insightParams(metric, metricSince, until, period);
                 totalParams.put("metric_type", "total_value");
                 if ("follows_and_unfollows".equals(metric)) totalParams.put("breakdown", "follow_type");
                 JsonNode response = get(currentInstagramUserId() + "/insights", totalParams);
@@ -121,22 +124,33 @@ public class InstagramInsightsService {
                     values.put(metric, metricValue(item));
                 }
                 try {
-                    Map<String, String> trendParams = insightParams(metric, since, until, period);
+                    Map<String, String> trendParams = insightParams(metric, metricSince, until, period);
                     trendParams.put("metric_type", "time_series");
+                    if ("follows_and_unfollows".equals(metric))
+                        trendParams.put("breakdown", "follow_type");
                     JsonNode trendItem = get(currentInstagramUserId() + "/insights", trendParams)
                             .path("data").path(0);
                     mergeTrend(trend, trendItem.path("values"), metric);
                 } catch (InstagramInsightsException trendException) {
                     if (isFatal(trendException)) throw trendException;
+                    if ("follows_and_unfollows".equals(metric)
+                            && "UNSUPPORTED_METRIC".equals(trendException.getCode()))
+                        trendUnavailableReasons.put("netFollowerChange",
+                                "META_DAILY_FOLLOWER_CHANGE_UNAVAILABLE");
                 }
             } catch (InstagramInsightsException exception) {
                 if (isFatal(exception)) throw exception;
+                if ("follows_and_unfollows".equals(metric))
+                    trendUnavailableReasons.put("netFollowerChange",
+                            "META_DAILY_FOLLOWER_CHANGE_UNAVAILABLE");
                 unavailable.add(metric);
                 values.put(metric, null);
             }
         }
         putAccountValues(result, values);
+        trend.sort(Comparator.comparing(row -> String.valueOf(row.get("date"))));
         result.put("dailyTrend", trend);
+        result.put("dailyTrendUnavailableReasons", trendUnavailableReasons);
         result.put("unavailableMetrics", unavailable);
         result.put("engagementRate", percentage(values.get("total_interactions"), values.get("reach")));
         return result;
@@ -180,6 +194,7 @@ public class InstagramInsightsService {
         }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("items", items);
+        result.put("dailyTrend", mediaDailyTrend(items));
         result.put("after", nullableText(response.path("paging").path("cursors"), "after"));
         result.put("hasNext", response.path("paging").has("next"));
         result.put("topByReach", top(items, "reach"));
@@ -410,7 +425,8 @@ public class InstagramInsightsService {
 
     private void mergeTrend(List<Map<String,Object>> trend, JsonNode values, String metric) {
         for (JsonNode value : values) {
-            String date = text(value, "end_time");
+            String date = normalizedDate(text(value, "end_time"));
+            if (date.isBlank()) continue;
             Map<String,Object> row = trend.stream().filter(r -> date.equals(r.get("date"))).findFirst()
                     .orElseGet(() -> { Map<String,Object> r=new LinkedHashMap<>(); r.put("date",date); trend.add(r); return r; });
             JsonNode metricValue = value.path("value");
@@ -422,9 +438,40 @@ public class InstagramInsightsService {
                 row.put("netFollowerChange", follows == null || unfollows == null ? null
                         : follows.doubleValue() - unfollows.doubleValue());
             } else {
-                row.put(camel(metric), metricValue.isNumber() ? metricValue.numberValue() : null);
+                row.put(camel(metric), numericValue(metricValue));
             }
         }
+    }
+    private List<Map<String,Object>> mediaDailyTrend(List<Map<String,Object>> items) {
+        Map<String,List<Map<String,Object>>> byDate = new TreeMap<>();
+        for (Map<String,Object> item : items) {
+            String date = normalizedDate(item.get("timestamp") instanceof String value ? value : "");
+            if (date.isBlank()) continue;
+            byDate.computeIfAbsent(date, ignored -> new ArrayList<>()).add(item);
+        }
+        List<Map<String,Object>> result = new ArrayList<>();
+        for (Map.Entry<String,List<Map<String,Object>>> entry : byDate.entrySet()) {
+            Map<String,Object> row = new LinkedHashMap<>();
+            row.put("date", entry.getKey());
+            sumCompleteMetric(row, entry.getValue(), "views");
+            sumCompleteMetric(row, entry.getValue(), "totalInteractions");
+            result.add(row);
+        }
+        return result;
+    }
+    private void sumCompleteMetric(Map<String,Object> row, List<Map<String,Object>> items, String key) {
+        if (items.stream().anyMatch(item -> !(item.get(key) instanceof Number))) return;
+        row.put(key, items.stream().map(item -> (Number) item.get(key)).mapToDouble(Number::doubleValue).sum());
+    }
+    private String normalizedDate(String value) {
+        if (value == null || value.length() < 10) return "";
+        try { return LocalDate.parse(value.substring(0, 10)).toString(); }
+        catch (Exception ignored) { return ""; }
+    }
+    private LocalDate followerMetricSince(LocalDate since, LocalDate until) {
+        if (until == null) return since;
+        LocalDate earliestSupported = until.minusDays(29);
+        return since == null || since.isBefore(earliestSupported) ? earliestSupported : since;
     }
 
     private Number metricValue(JsonNode item) {
