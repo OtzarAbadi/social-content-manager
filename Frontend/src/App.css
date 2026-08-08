@@ -1762,6 +1762,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .overview-card h3 { margin-bottom: 10px; font-size: .92rem; }
 .overview-card button { display: flex; width: 100%; min-height: 40px; padding: 7px 0; border: 0; border-top: 1px solid #E4D8C9; align-items: center; justify-content: space-between; gap: 10px; color: var(--text); background: transparent; text-align: start; cursor: pointer; }
 .overview-card button:hover { color: var(--primary-dark); }
+.overview-card .recent-content-link:focus-visible { border-radius: 6px; outline: 3px solid rgba(128,102,157,.35); outline-offset: 2px; }
 .overview-card time { color: var(--text-soft); font-size: .76rem; }
 .overview-card p { margin: 8px 0 0; font-size: .86rem; }
 .workspace-tabs { width: 100%; padding: 8px; border-bottom: 1px solid var(--border); border-radius: 0; background: #fff; }

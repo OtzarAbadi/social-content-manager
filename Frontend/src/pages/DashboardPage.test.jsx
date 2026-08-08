@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import DashboardPage from './DashboardPage.jsx'
 import api from '../services/api.js'
@@ -132,6 +133,62 @@ describe('Clients Management content filtering navigation', () => {
   })
 })
 
+describe('CLIENT recent content navigation', () => {
+  afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+  const clientContents = [
+    { contentId: 301, clientId: 1, title: 'Recent A', status: 'APPROVED' },
+    { content_id: 302, client_id: 1, title: 'Recent B', status: 'DRAFT' },
+  ]
+
+  it('navigates Content A and Content B by exact stable ID without stale selection', async () => {
+    mockDashboardData({ role: 'CLIENT', contents: clientContents })
+    render(<MemoryRouter initialEntries={['/dashboard']}>
+      <DashboardPage activeRoute="dashboard" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+      <LocationProbe />
+    </MemoryRouter>)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'פתיחת התוכן Recent A' }))
+    expect(screen.getByTestId('location').textContent).toBe('/content/301?highlightId=301')
+    fireEvent.click(screen.getByRole('button', { name: 'פתיחת התוכן Recent B' }))
+    expect(screen.getByTestId('location').textContent).toBe('/content/302?highlightId=302')
+  })
+
+  it('opens only the requested content on the destination page', async () => {
+    mockDashboardData({ role: 'CLIENT', contents: clientContents })
+    render(<MemoryRouter initialEntries={['/content/302?highlightId=302']}>
+      <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+
+    expect(await screen.findByText('Recent B')).toBeTruthy()
+    expect(screen.queryByText('Recent A')).toBeNull()
+  })
+
+  it('supports keyboard activation through the semantic recent-content button', async () => {
+    const user = userEvent.setup()
+    mockDashboardData({ role: 'CLIENT', contents: clientContents.slice(0, 1) })
+    render(<MemoryRouter initialEntries={['/dashboard']}>
+      <DashboardPage activeRoute="dashboard" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+      <LocationProbe />
+    </MemoryRouter>)
+
+    const recentButton = await screen.findByRole('button', { name: 'פתיחת התוכן Recent A' })
+    recentButton.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByTestId('location').textContent).toBe('/content/301?highlightId=301')
+  })
+
+  it('does not expose another client content through a manually changed ID', async () => {
+    mockDashboardData({ role: 'CLIENT', contents: clientContents.slice(0, 1) })
+    render(<MemoryRouter initialEntries={['/content/999?highlightId=999']}>
+      <DashboardPage activeRoute="content" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+
+    await screen.findByText(/לא ניתן לפתוח את התוכן המבוקש/)
+    expect(screen.queryByText('Recent A')).toBeNull()
+  })
+})
+
 describe('Activity Center comment navigation', () => {
   afterEach(() => { cleanup(); vi.clearAllMocks() })
 
@@ -190,5 +247,6 @@ describe('Activity Center comment navigation', () => {
     </MemoryRouter>)
 
     expect(await screen.findByText('לא ניתן לפתוח את התוכן המבוקש. ייתכן שהוא נמחק או שאין לך הרשאה לצפות בו.')).toBeTruthy()
+    expect(screen.queryByText('Content A')).toBeNull()
   })
 })

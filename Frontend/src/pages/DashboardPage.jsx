@@ -254,6 +254,14 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const isClient = profile.role === 'CLIENT'
   const isAdmin = profile.role === 'ADMIN'
   const visibleContents = useMemo(() => filterContents(contents, contentFilter, clientById), [contents, contentFilter, clientById])
+  const requestedContentId = useMemo(() => {
+    const match = location.pathname.match(/^\/content\/(\d+)\/?$/)
+    return match ? Number(match[1]) : null
+  }, [location.pathname])
+  const displayedContents = useMemo(() => requestedContentId === null
+    ? visibleContents
+    : visibleContents.filter((content) => Number(getContentId(content)) === requestedContentId),
+  [requestedContentId, visibleContents])
   function navigateToPanel(panel) {
     onNavigate(routeByPanel[panel])
   }
@@ -709,6 +717,12 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
     navigate(`/content?clientId=${encodeURIComponent(clientId)}`)
   }
 
+  function openRecentContent(content) {
+    const contentId = getContentId(content)
+    if (!contentId) return
+    navigate(`/content/${contentId}?highlightId=${contentId}`)
+  }
+
   function openCommentContent(comment, content) {
     if (!content || !comment.contentId || Number(getContentId(content)) !== Number(comment.contentId)) return
     navigate(`/content/${comment.contentId}?highlightId=${comment.contentId}`)
@@ -1036,7 +1050,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
               <span>מתוזמנים <strong>{dashboardContents.filter((item) => item.plannedPublishDate).length}</strong></span>
             </div>
             <div className="overview-columns">
-              <div className="overview-card"><h3>תוכן אחרון</h3>{recentContents.length ? recentContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => navigateToPanel('contents')}><span>{content.title}</span><StatusBadge status={content.status} /></button>) : <p>אין עדיין תכנים להצגה</p>}</div>
+              <div className="overview-card"><h3>תוכן אחרון</h3>{recentContents.length ? recentContents.map((content) => {
+                const contentId = getContentId(content)
+                return <button type="button" className="recent-content-link" key={contentId} onClick={() => openRecentContent(content)} aria-label={`פתיחת התוכן ${content.title}`}><span>{content.title}</span><StatusBadge status={content.status} /></button>
+              }) : <p>אין עדיין תכנים להצגה</p>}</div>
               <div className="overview-card"><h3>פרסומים קרובים</h3>{upcomingContents.length ? upcomingContents.map((content) => <button type="button" key={getContentId(content)} onClick={() => onNavigate('calendar')}><span>{content.title}</span><time>{new Date(content.plannedPublishDate).toLocaleDateString('he-IL')}</time></button>) : <p>אין פרסומים מתוכננים בקרוב</p>}</div>
               <div className="overview-card recent-activity-widget">
                 <h3>פעילות אחרונה</h3>
@@ -1395,7 +1412,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {loading.contents && <Skeleton rows={3} />}
               {errors.contents && <p className="entity-state entity-state-error">{errors.contents}</p>}
-              {!loading.contents && !errors.contents && visibleContents.length === 0 && (
+              {!loading.contents && !errors.contents && displayedContents.length === 0 && (
                 <EmptyState icon={FilePlus2} title="עדיין אין תוכן" description="צרו תוכן חדש והתחילו לתכנן את הפרסום הבא." actionLabel="יצירת תוכן חדש" onAction={() => setShowCreateForm((current) => ({ ...current, contents: true }))} />
               )}
 
@@ -1409,7 +1426,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
               {!resultsHidden.contents && (
                 <div className="entity-list">
-                  {visibleContents.map((content) => {
+                  {displayedContents.map((content) => {
                     const contentId = getContentId(content)
                     const contentClientId = content.clientId ?? content.client_id
                     const isEditing = editingContentId === contentId
