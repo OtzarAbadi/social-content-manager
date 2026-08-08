@@ -30,6 +30,7 @@ public class InstagramInsightsService {
             "total_interactions", "follows_and_unfollows");
     private static final List<String> COMMON_MEDIA_METRICS = List.of(
             "reach", "saved", "shares", "total_interactions", "likes", "comments");
+    private static final List<String> MEDIA_VIEW_METRICS = List.of("views");
     private static final List<String> VIDEO_MEDIA_METRICS = List.of(
             "ig_reels_avg_watch_time", "ig_reels_video_view_total_time");
 
@@ -197,27 +198,17 @@ public class InstagramInsightsService {
     }
 
     private Map<String, Object> enrichMedia(JsonNode node) {
-        List<String> metrics = new ArrayList<>(COMMON_MEDIA_METRICS);
         String product = text(node, "media_product_type");
         String type = text(node, "media_type");
-        if ("VIDEO".equals(type) || "REELS".equals(product)) metrics.addAll(VIDEO_MEDIA_METRICS);
         List<String> unavailable = new ArrayList<>();
         Map<String, Number> values = new HashMap<>();
-        try {
-            JsonNode response = get(text(node, "id") + "/insights",
-                    Map.of("metric", String.join(",", metrics)));
-            for (JsonNode metricNode : response.path("data")) {
-                String metricName = text(metricNode, "name");
-                if (!metricName.isBlank()) values.put(metricName, metricValue(metricNode));
-            }
-            for (String metric : metrics) if (!values.containsKey(metric)) unavailable.add(metric);
-        } catch (InstagramInsightsException exception) {
-            if (isFatal(exception)) throw exception;
-            unavailable.addAll(metrics);
-        }
+        fetchMediaMetrics(node, type, product, MEDIA_VIEW_METRICS, values, unavailable);
+        fetchMediaMetrics(node, type, product, COMMON_MEDIA_METRICS, values, unavailable);
+        if ("REELS".equals(product))
+            fetchMediaMetrics(node, type, product, VIDEO_MEDIA_METRICS, values, unavailable);
         Map<String, Object> result = baseMedia(node, unavailable);
         result.put("reach", values.get("reach"));
-        result.put("views", null);
+        result.put("views", values.get("views"));
         result.put("likes", values.containsKey("likes") ? values.get("likes") : number(node, "like_count"));
         result.put("comments", values.containsKey("comments") ? values.get("comments") : number(node, "comments_count"));
         result.put("saved", values.get("saved"));
@@ -229,6 +220,31 @@ public class InstagramInsightsService {
         result.put("profileActivity", null);
         result.put("engagementRate", percentage(values.get("total_interactions"), values.get("reach")));
         return result;
+    }
+
+    private void fetchMediaMetrics(JsonNode node, String type, String product, List<String> metrics,
+                                   Map<String, Number> values, List<String> unavailable) {
+        String mediaId = text(node, "id");
+        try {
+            JsonNode response = get(mediaId + "/insights",
+                    Map.of("metric", String.join(",", metrics)));
+            List<String> returned = new ArrayList<>();
+            for (JsonNode metricNode : response.path("data")) {
+                String metricName = text(metricNode, "name");
+                if (!metricName.isBlank()) {
+                    returned.add(metricName);
+                    values.put(metricName, metricValue(metricNode));
+                }
+            }
+            for (String metric : metrics) if (!values.containsKey(metric)) unavailable.add(metric);
+            logger.debug("Meta media insights mediaId={} mediaType={} mediaProductType={} requestedMetrics={} returnedMetrics={} status=200",
+                    mediaId, type, product, metrics, returned);
+        } catch (InstagramInsightsException exception) {
+            if (isFatal(exception)) throw exception;
+            unavailable.addAll(metrics);
+            logger.debug("Meta media insights mediaId={} mediaType={} mediaProductType={} requestedMetrics={} returnedMetrics=[] status={}",
+                    mediaId, type, product, metrics, exception.getStatus().value());
+        }
     }
 
     private Map<String, Object> baseMedia(JsonNode node, List<String> unavailable) {
@@ -413,9 +429,21 @@ public class InstagramInsightsService {
 
     private Number metricValue(JsonNode item) {
         JsonNode total = item.path("total_value").path("value");
-        if (total.isNumber()) return total.numberValue();
+        Number totalNumber = numericValue(total);
+        if (totalNumber != null) return totalNumber;
         JsonNode value = item.path("values").path(0).path("value");
-        return value.isNumber() ? value.numberValue() : null;
+        return numericValue(value);
+    }
+    private Number numericValue(JsonNode value) {
+        if (value.isNumber()) return value.numberValue();
+        if (!value.isTextual() || value.asText().isBlank()) return null;
+        try {
+            double parsed = Double.parseDouble(value.asText().trim());
+            if (!Double.isFinite(parsed)) return null;
+            if (parsed == Math.rint(parsed) && parsed >= Long.MIN_VALUE && parsed <= Long.MAX_VALUE)
+                return Long.valueOf((long) parsed);
+            return Double.valueOf(parsed);
+        } catch (NumberFormatException ignored) { return null; }
     }
     private Map<String,Object> top(List<Map<String,Object>> items,String key) {
         return items.stream().filter(i -> i.get(key) instanceof Number)

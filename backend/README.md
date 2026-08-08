@@ -76,12 +76,12 @@ expires or invalidates it. This change prepares the backend configuration bounda
 adds no OAuth flow, token persistence, database change, or migration.
 
 Account metrics are requested independently: reach, views, profile views, accounts engaged,
-total interactions, and follows/unfollows. Media metrics are also isolated so an unsupported
-metric does not fail the page. Images, videos, Reels, and carousels request reach, views,
-saves, shares, total interactions, likes, and comments. Videos and Reels additionally request
-average watch time, total video watch time, follows, and profile activity. Meta availability
-varies by media type, account, API version, time range, and permission; unavailable values are
-returned as `null`, never fabricated as zero.
+total interactions, and follows/unfollows. For media, `views` is requested independently so an
+unsupported metric in the common batch cannot suppress it. Images, feed videos, Reels, and
+carousels request views, reach, saves, shares, total interactions, likes, and comments. Reels
+additionally request average watch time and total video watch time. Meta availability varies by
+media type, account, API version, time range, and permission; unavailable values are returned as
+`null`, never fabricated as zero.
 
 Common errors:
 

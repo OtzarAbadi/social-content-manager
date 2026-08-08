@@ -20,6 +20,7 @@ import static org.springframework.test.web.client.ExpectedCount.manyTimes;
 import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 class InstagramInsightsServiceTests {
@@ -57,6 +58,41 @@ class InstagramInsightsServiceTests {
         assertEquals("safe-cursor", result.get("after"));
         assertFalse(result.toString().contains("access_token"));
         assertEquals(1, ((java.util.List<?>)result.get("items")).size());
+        server.verify();
+    }
+
+    @Test
+    void mediaViewsAreRequestedMappedAndParsedAcrossFeedAndReels() {
+        RestTemplate rest = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(rest).build();
+        server.expect(requestTo(anything())).andRespond(withSuccess(
+                "{\"data\":[" +
+                        "{\"id\":\"image\",\"media_type\":\"IMAGE\"}," +
+                        "{\"id\":\"carousel\",\"media_type\":\"CAROUSEL_ALBUM\"}," +
+                        "{\"id\":\"video\",\"media_type\":\"VIDEO\",\"media_product_type\":\"FEED\"}," +
+                        "{\"id\":\"reel\",\"media_type\":\"VIDEO\",\"media_product_type\":\"REELS\"}]}",
+                MediaType.APPLICATION_JSON));
+
+        expectMetric(server, "views", "{\"data\":[{\"name\":\"views\",\"values\":[{\"value\":\"17\"}]}]}");
+        expectCommonMetrics(server);
+        expectMetric(server, "views", "{\"data\":[{\"name\":\"views\",\"values\":[{\"value\":0}]}]}");
+        expectCommonMetrics(server);
+        expectMetric(server, "views", "{\"data\":[]}");
+        expectCommonMetrics(server);
+        expectMetric(server, "views", "{\"data\":[{\"name\":\"views\",\"total_value\":{\"value\":23}}]}");
+        expectCommonMetrics(server);
+        expectMetric(server, "ig_reels_avg_watch_time,ig_reels_video_view_total_time",
+                "{\"data\":[{\"name\":\"ig_reels_avg_watch_time\",\"values\":[{\"value\":4.5}]}]}");
+
+        Map<String,Object> result = service(rest).media(null, null, "ALL", 25, null);
+        java.util.List<?> items = (java.util.List<?>) result.get("items");
+        assertEquals(17L, ((Map<?,?>) items.get(0)).get("views"));
+        assertEquals(0, ((Number) ((Map<?,?>) items.get(1)).get("views")).intValue());
+        assertNull(((Map<?,?>) items.get(2)).get("views"));
+        assertEquals(23, ((Number) ((Map<?,?>) items.get(3)).get("views")).intValue());
+        assertEquals(7, ((Number) ((Map<?,?>) items.get(3)).get("reach")).intValue());
+        assertEquals(5, ((Number) ((Map<?,?>) items.get(3)).get("likes")).intValue());
+        assertEquals(4.5, ((Number) ((Map<?,?>) items.get(3)).get("averageWatchTime")).doubleValue());
         server.verify();
     }
 
@@ -158,5 +194,14 @@ class InstagramInsightsServiceTests {
     }
     private InstagramInsightsService service(RestTemplate rest) {
         return new InstagramInsightsService(rest,new ObjectMapper(),"ig-user","secret-token","https://graph.facebook.com/v25.0");
+    }
+    private void expectCommonMetrics(MockRestServiceServer server) {
+        expectMetric(server, "reach,saved,shares,total_interactions,likes,comments",
+                "{\"data\":[{\"name\":\"reach\",\"values\":[{\"value\":7}]}," +
+                        "{\"name\":\"likes\",\"values\":[{\"value\":5}]}]}");
+    }
+    private void expectMetric(MockRestServiceServer server, String metric, String body) {
+        server.expect(requestTo(anything())).andExpect(queryParam("metric", metric))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 }

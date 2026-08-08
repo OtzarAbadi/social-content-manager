@@ -106,6 +106,22 @@ describe('AnalyticsPage', () => {
     expect(captionCells.slice(1).every((cell) => cell.textContent === '')).toBe(true)
     expect(rows[1].children[4].textContent).toBe('לא זמין')
   })
+  it('displays available and zero media views while preserving genuinely unavailable metrics', async () => {
+    getInstagramMediaInsights.mockResolvedValue({ items: [
+      { ...item, mediaId: 'views-present', views: 321, reach: 41, likes: 8 },
+      { ...item, mediaId: 'views-zero', views: 0, reach: 42, likes: 9 },
+      { ...item, mediaId: 'views-null', views: null, reach: 43, likes: 10 },
+      { ...item, mediaId: 'views-missing', views: undefined, reach: 44, likes: 11 },
+    ] })
+
+    const { container } = renderPage()
+    await screen.findByText('1,234')
+
+    const rows = [...container.querySelectorAll('.instagram-media-table tbody tr')]
+    expect(rows.map((row) => row.children[5].textContent)).toEqual(['321', '0', 'לא זמין', 'לא זמין'])
+    expect(rows.map((row) => row.children[4].textContent)).toEqual(['41', '42', '43', '44'])
+    expect(rows.map((row) => row.children[6].textContent)).toEqual(['8', '9', '10', '11'])
+  })
   it('renders permission error and retry for temporary failures', async () => {
     getInstagramAccountInsights.mockRejectedValue({ response: { data: { code: 'MISSING_PERMISSION' }, status: 403 } })
     const view = renderPage()
