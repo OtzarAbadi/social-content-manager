@@ -39,7 +39,7 @@ function PageShell({ activeRoute, routes, onNavigate, isAuthenticated, onLogout,
     Promise.resolve().then(async () => {
       setProfileError('')
       try {
-        setProfile((await api.get('/users/me')).data)
+        setProfile((await api.get('/users/me', { suppressGlobalErrorToast: true })).data)
       } catch {
         setProfile(null)
         setProfileError('לא הצלחנו לטעון את פרטי המשתמש. אפשר להמשיך לעבוד ולנסות לרענן מאוחר יותר.')

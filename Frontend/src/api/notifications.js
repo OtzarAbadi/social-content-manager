@@ -18,7 +18,7 @@ export async function getNotifications() {
 }
 
 export async function getUnreadNotificationCount() {
-  return (await api.get('/notifications/unread-count')).data.count || 0
+  return (await api.get('/notifications/unread-count', { suppressGlobalErrorToast: true })).data.count || 0
 }
 
 export async function markNotificationRead(notificationId) {

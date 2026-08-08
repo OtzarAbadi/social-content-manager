@@ -46,6 +46,7 @@ describe('PageShell mobile navigation', () => {
       expect(within(navigation).getByText(label)).toBeTruthy()
     }
     expect(navigation.dataset.scrollable).toBe('horizontal')
+    expect(api.get).toHaveBeenCalledWith('/users/me', { suppressGlobalErrorToast: true })
   })
 
   it('scrolls the active mobile route into view after role-aware items render', async () => {
