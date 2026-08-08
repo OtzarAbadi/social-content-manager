@@ -151,7 +151,10 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   const [clientSearch, setClientSearch] = useState('')
   const [commentSearch, setCommentSearch] = useState('')
   const [dashboardClientId, setDashboardClientId] = useState('')
-  const [contentFilter, setContentFilter] = useState(emptyContentFilters)
+  const [contentFilter, setContentFilter] = useState(() => ({
+    ...emptyContentFilters,
+    clientId: new URLSearchParams(location.search).has('clientId') ? '__pending__' : '',
+  }))
   const [commentsContentId, setCommentsContentId] = useState('')
   const [filteredResults, setFilteredResults] = useState({
     clients: false,
@@ -413,6 +416,36 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   }, [activeRoute, isClient, onNavigate])
 
   useEffect(() => {
+    if (activeRoute !== 'content' || loading.profile || loading.clients) return
+
+    if (isClient) {
+      setContentFilter((current) => current.clientId ? { ...current, clientId: '' } : current)
+      return
+    }
+
+    const requestedClientId = new URLSearchParams(location.search).get('clientId')
+    if (!requestedClientId) {
+      setContentFilter((current) => current.clientId ? { ...current, clientId: '' } : current)
+      return
+    }
+
+    const requestedId = Number(requestedClientId)
+    const authorizedClient = Number.isSafeInteger(requestedId) && requestedId > 0
+      && clients.some((client) => Number(getClientId(client)) === requestedId)
+    if (!authorizedClient) {
+      setContentFilter((current) => current.clientId === '__invalid__'
+        ? current
+        : { ...current, clientId: '__invalid__' })
+      setNotice('לא ניתן לסנן לפי הלקוח המבוקש. ייתכן שהוא אינו קיים או שאין לך הרשאה לצפות בו.')
+      return
+    }
+
+    setContentFilter((current) => current.clientId === String(requestedId)
+      ? current
+      : { ...current, clientId: String(requestedId) })
+  }, [activeRoute, clients, isClient, loading.clients, loading.profile, location.search])
+
+  useEffect(() => {
     const contentMatch = location.pathname.match(/^\/content\/(\d+)\/?$/)
     if (!contentMatch) return undefined
 
@@ -672,8 +705,8 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
 
   function handleLoadContentsByClient(clientId) {
     if (!clientId) return
-    setContentFilter((current) => ({ ...current, clientId: String(clientId) }))
-    navigateToPanel('contents')
+    setContentFilter({ ...emptyContentFilters, clientId: String(clientId) })
+    navigate(`/content?clientId=${encodeURIComponent(clientId)}`)
   }
 
   function openCommentContent(comment, content) {

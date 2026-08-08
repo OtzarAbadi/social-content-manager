@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import DashboardPage from './DashboardPage.jsx'
 import api from '../services/api.js'
@@ -12,9 +12,10 @@ function LocationProbe() {
   return <output data-testid="location">{location.pathname}{location.search}</output>
 }
 
-function mockDashboardData({ role = 'ADMIN', contents = [], comments = [] } = {}) {
+function mockDashboardData({ role = 'ADMIN', clients = [], contents = [], comments = [] } = {}) {
   api.get.mockImplementation((url) => {
     if (url === '/users/me') return Promise.resolve({ data: { role, id: 1, clientId: role === 'CLIENT' ? 1 : null } })
+    if (url === '/clients') return Promise.resolve({ data: clients })
     if (url === '/contents') return Promise.resolve({ data: contents })
     if (url === '/comments') return Promise.resolve({ data: comments })
     return Promise.resolve({ data: [] })
@@ -42,6 +43,92 @@ describe('Clients Management cards', () => {
     expect(await screen.findByText('Otzar social')).toBeTruthy()
     expect(screen.getByText(/050-1234567/)).toBeTruthy()
     expect(container.querySelector('#clients-title')?.closest('.management-section')?.querySelector('.entity-mark')).toBeNull()
+  })
+})
+
+describe('Clients Management content filtering navigation', () => {
+  afterEach(() => { cleanup(); vi.clearAllMocks(); vi.restoreAllMocks() })
+
+  const clients = [
+    { client_id: 1, business_name: 'Client A' },
+    { client_id: 2, business_name: 'Client B' },
+  ]
+  const contents = [
+    { contentId: 101, clientId: 1, title: 'Only A', status: 'DRAFT' },
+    { contentId: 202, clientId: 2, title: 'Only B', status: 'DRAFT' },
+  ]
+
+  function renderDashboard(activeRoute, initialEntry) {
+    return render(<MemoryRouter initialEntries={[initialEntry]}>
+      <DashboardPage activeRoute={activeRoute} routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+      <LocationProbe />
+    </MemoryRouter>)
+  }
+
+  it('navigates Client A and Client B with their stable clientId', async () => {
+    mockDashboardData({ clients, contents })
+    renderDashboard('clients', '/clients')
+
+    const cardA = (await screen.findByText('Client A')).closest('article')
+    const cardB = screen.getByText('Client B').closest('article')
+    fireEvent.click(within(cardA).getAllByRole('button')[1])
+    expect(screen.getByTestId('location').textContent).toBe('/content?clientId=1')
+    fireEvent.click(within(cardB).getAllByRole('button')[1])
+    expect(screen.getByTestId('location').textContent).toBe('/content?clientId=2')
+  })
+
+  it('restores the query filter on refresh and shows only Client B content', async () => {
+    mockDashboardData({ clients, contents })
+    const { container } = renderDashboard('content', '/content?clientId=2')
+
+    await waitFor(() => expect(container.querySelector('select[name="clientId"]').value).toBe('2'))
+    expect(screen.getByText('Only B')).toBeTruthy()
+    expect(screen.queryByText('Only A')).toBeNull()
+  })
+
+  it('shows no unrelated content for an invalid clientId and clears stale selection when absent', async () => {
+    mockDashboardData({ clients, contents })
+    const { unmount } = renderDashboard('content', '/content?clientId=999')
+    await screen.findByText(/לא ניתן לסנן לפי הלקוח המבוקש/)
+    expect(screen.queryByText('Only A')).toBeNull()
+    expect(screen.queryByText('Only B')).toBeNull()
+    unmount()
+
+    mockDashboardData({ clients, contents })
+    renderDashboard('content', '/content')
+    expect(await screen.findByText('Only A')).toBeTruthy()
+    expect(screen.getByText('Only B')).toBeTruthy()
+  })
+
+  it('does not navigate when edit or delete actions are used', async () => {
+    mockDashboardData({ clients, contents })
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderDashboard('clients', '/clients')
+
+    const actions = within((await screen.findByText('Client A')).closest('article')).getAllByRole('button')
+    fireEvent.click(actions[2])
+    expect(screen.getByTestId('location').textContent).toBe('/clients')
+    fireEvent.click(actions[0])
+    expect(screen.getByTestId('location').textContent).toBe('/clients')
+  })
+
+  it('keeps CLIENT backend scoping and ignores a clientId query override', async () => {
+    mockDashboardData({ role: 'CLIENT', clients: [clients[0]], contents: [contents[0]] })
+    const { container } = renderDashboard('content', '/content?clientId=2')
+
+    expect(await screen.findByText('Only A')).toBeTruthy()
+    expect(screen.queryByText('Only B')).toBeNull()
+    expect(container.querySelector('select[name="clientId"]')).toBeNull()
+  })
+
+  it('keeps existing manual client filtering behavior', async () => {
+    mockDashboardData({ clients, contents })
+    const { container } = renderDashboard('content', '/content')
+    await screen.findByText('Only A')
+
+    fireEvent.change(container.querySelector('select[name="clientId"]'), { target: { name: 'clientId', value: '1' } })
+    expect(screen.getByText('Only A')).toBeTruthy()
+    expect(screen.queryByText('Only B')).toBeNull()
   })
 })
 
