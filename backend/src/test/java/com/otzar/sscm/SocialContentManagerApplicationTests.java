@@ -367,7 +367,7 @@ class SocialContentManagerApplicationTests {
         mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"businessName\":\"Disposable Client\",\"fullName\":\"Disposable Client\","
                                 + "\"email\":\"" + username + "@example.com\",\"username\":\"" + username
-                                + "\",\"password\":\"password\"}"))
+                                + "\",\"password\":\"password\",\"phone\":\"0501234567\"}"))
                 .andExpect(status().isCreated());
 
         com.otzar.sscm.entities.User user = userRepository.findByUsername(username).orElseThrow();
@@ -405,6 +405,8 @@ class SocialContentManagerApplicationTests {
     @Test
     void adminCanArchiveAndRestoreClientWithoutChangingContentRelationship() throws Exception {
         Client client = createClient(2L);
+        client.setInstagramUsername("archive.kept");
+        clientRepository.save(client);
         Content content = new Content();
         content.setClientId(client.getClient_id());
         content.setTitle("Archived history");
@@ -418,11 +420,15 @@ class SocialContentManagerApplicationTests {
         org.junit.jupiter.api.Assertions.assertTrue(clientRepository.findActiveById(client.getClient_id()).isEmpty());
         org.junit.jupiter.api.Assertions.assertEquals(client.getClient_id(),
                 contentRepository.findById(content.getContent_id()).orElseThrow().getClientId());
+        org.junit.jupiter.api.Assertions.assertEquals("archive.kept",
+                clientRepository.findById(client.getClient_id()).orElseThrow().getInstagramUsername());
 
         mockMvc.perform(put("/clients/{id}/restore", client.getClient_id()).cookie(adminCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.archived").value(false));
         org.junit.jupiter.api.Assertions.assertTrue(clientRepository.findActiveById(client.getClient_id()).isPresent());
+        org.junit.jupiter.api.Assertions.assertEquals("archive.kept",
+                clientRepository.findById(client.getClient_id()).orElseThrow().getInstagramUsername());
     }
 
     @Test

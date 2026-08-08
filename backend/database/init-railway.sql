@@ -28,6 +28,7 @@ CREATE TABLE clients (
                          admin_id INT,
                          business_name VARCHAR(150) NOT NULL,
                          phone VARCHAR(20),
+                         instagram_username VARCHAR(100) NULL,
                          archived BOOLEAN NOT NULL DEFAULT FALSE,
                          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 

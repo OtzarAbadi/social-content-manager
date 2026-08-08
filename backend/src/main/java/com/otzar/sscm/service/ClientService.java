@@ -68,6 +68,7 @@ public class ClientService {
         client.setAdmin_id(request.getAdminId());
         client.setBusiness_name(request.getBusinessName());
         client.setPhone(request.getPhone());
+        client.setInstagramUsername(request.getInstagramUsername());
         client.setArchived(false);
 
         return clientRepository.save(client);
@@ -98,6 +99,10 @@ public class ClientService {
 
         if (request.getPhone() != null) {
             client.setPhone(request.getPhone());
+        }
+
+        if (request.isInstagramUsernameProvided()) {
+            client.setInstagramUsername(request.getInstagramUsername());
         }
 
         return Optional.of(clientRepository.save(client));

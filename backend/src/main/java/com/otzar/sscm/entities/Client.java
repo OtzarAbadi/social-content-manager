@@ -9,6 +9,7 @@ public class Client {
 
     private String business_name;
     private String phone;
+    private String instagramUsername;
     private boolean archived;
 
     // getters & setters
@@ -26,6 +27,9 @@ public class Client {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getInstagramUsername() { return instagramUsername; }
+    public void setInstagramUsername(String instagramUsername) { this.instagramUsername = instagramUsername; }
 
     public boolean isArchived() { return archived; }
     public void setArchived(boolean archived) { this.archived = archived; }

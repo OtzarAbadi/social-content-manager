@@ -154,7 +154,7 @@ class SecurityHardeningIntegrationTests {
     private void createClient(String username, String password) throws Exception {
         String body = "{\"businessName\":\"Secure Client\",\"fullName\":\"Secure Client\","
                 + "\"email\":\"" + username + "@example.com\",\"username\":\"" + username
-                + "\",\"password\":\"" + password + "\"}";
+                + "\",\"password\":\"" + password + "\",\"phone\":\"0501234567\"}";
         mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());
     }

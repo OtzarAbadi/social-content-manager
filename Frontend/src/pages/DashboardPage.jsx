@@ -17,6 +17,7 @@ import SelectedMediaPreview from '../components/SelectedMediaPreview.jsx'
 import { ActivityIcon, formatRelativeActivityTime, getActivityDesign } from '../components/activityDesign.js'
 import { appendMediaFiles, legacyContentType, mediaAcceptForMode, MIXED_MEDIA_MODE, validateMediaSelection } from '../utils/contentMediaForm.js'
 import { emptyContentFilters, filterContents } from '../utils/contentFilters.js'
+import { normalizeInstagramUsername, normalizeIsraeliPhone, validateClientFields } from '../utils/clientFields.js'
 
 const statusOptions = [
   { value: 'DRAFT', label: 'טיוטה' },
@@ -46,6 +47,7 @@ const emptyClientForm = {
   username: '',
   password: '',
   phone: '',
+  instagramUsername: '',
   adminId: 1,
 }
 
@@ -150,6 +152,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   })
 
   const [clientSearch, setClientSearch] = useState('')
+  const [clientValidation, setClientValidation] = useState({ phone: '', instagramUsername: '' })
   const [clientView, setClientView] = useState('active')
   const [commentSearch, setCommentSearch] = useState('')
   const [dashboardClientId, setDashboardClientId] = useState('')
@@ -218,6 +221,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       return [
         client.business_name,
         client.phone,
+        client.instagramUsername,
         customer?.full_name,
         customer?.username,
         ...clientContent.flatMap((content) => [content.title, content.description]),
@@ -558,16 +562,27 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       ...current,
       [name]: name === 'adminId' && value !== '' ? Number(value) : value,
     }))
+    if (name === 'phone' || name === 'instagramUsername') {
+      setClientValidation((current) => ({ ...current, [name]: '' }))
+    }
   }
 
   async function handleCreateClient(event) {
     event.preventDefault()
+    const validation = validateClientFields(clientForm)
+    setClientValidation(validation)
+    if (validation.phone || validation.instagramUsername) return
     setSaving((current) => ({ ...current, client: true }))
     setErrors((current) => ({ ...current, clients: '' }))
 
     try {
-      await api.post('/clients', clientForm)
+      await api.post('/clients', {
+        ...clientForm,
+        phone: normalizeIsraeliPhone(clientForm.phone),
+        instagramUsername: normalizeInstagramUsername(clientForm.instagramUsername) || null,
+      })
       setClientForm(emptyClientForm)
+      setClientValidation({ phone: '', instagramUsername: '' })
       setShowCreateForm((current) => ({ ...current, clients: false }))
       await loadClients()
       showNotice('הלקוח נוצר בהצלחה')
@@ -582,12 +597,14 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
   }
 
   function startClientEdit(client) {
+    setClientValidation({ phone: '', instagramUsername: '' })
     setEditingClientId(getClientId(client))
     setClientDraft({
       userId: client.user_id ?? '',
       adminId: client.admin_id ?? '',
       businessName: client.business_name ?? '',
       phone: client.phone ?? '',
+      instagramUsername: client.instagramUsername ?? '',
     })
   }
 
@@ -598,12 +615,19 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
       ...current,
       [name]: value,
     }))
+    if (name === 'phone' || name === 'instagramUsername') {
+      setClientValidation((current) => ({ ...current, [name]: '' }))
+    }
   }
 
   async function handleUpdateClient(clientId) {
+    const validation = validateClientFields(clientDraft)
+    setClientValidation(validation)
+    if (validation.phone || validation.instagramUsername) return
     const payload = {
       businessName: clientDraft.businessName,
-      phone: clientDraft.phone,
+      phone: normalizeIsraeliPhone(clientDraft.phone),
+      instagramUsername: normalizeInstagramUsername(clientDraft.instagramUsername) || null,
     }
 
     if (clientDraft.userId !== '') {
@@ -1222,9 +1246,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                                 טלפון
                                 <input
                                   name="phone"
+                                  inputMode="tel"
                                   value={clientDraft.phone}
                                   onChange={handleClientDraftChange}
+                                  aria-invalid={Boolean(clientValidation.phone)}
+                                  required
                                 />
+                                {clientValidation.phone && <span className="field-error">{clientValidation.phone}</span>}
+                              </label>
+                              <label>
+                                חשבון Instagram
+                                <input
+                                  name="instagramUsername"
+                                  value={clientDraft.instagramUsername}
+                                  onChange={handleClientDraftChange}
+                                  aria-invalid={Boolean(clientValidation.instagramUsername)}
+                                />
+                                {clientValidation.instagramUsername && <span className="field-error">{clientValidation.instagramUsername}</span>}
                               </label>
                               <label>
                                 User ID
@@ -1253,6 +1291,7 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                               <span>User ID: {client.user_id ?? '-'}</span>
                               <span>מנהל סושיאל: {client.admin_id ? (managerByAdminId.get(Number(client.admin_id))?.fullName || managerByAdminId.get(Number(client.admin_id))?.username || `#${client.admin_id}`) : 'לא משויך'}</span>
                               <span className="phone-number">טלפון: {client.phone || '-'}</span>
+                              {client.instagramUsername && <span className="instagram-username" dir="ltr">@{client.instagramUsername}</span>}
                             </div>
                           )}
                         </div>
@@ -1387,9 +1426,23 @@ function DashboardPage({ activeRoute, routes, onNavigate, isAuthenticated, onLog
                       טלפון
                       <input
                         name="phone"
+                        inputMode="tel"
                         value={clientForm.phone}
                         onChange={handleClientFormChange}
+                        aria-invalid={Boolean(clientValidation.phone)}
+                        required
                       />
+                      {clientValidation.phone && <span className="field-error">{clientValidation.phone}</span>}
+                    </label>
+                    <label>
+                      חשבון Instagram
+                      <input
+                        name="instagramUsername"
+                        value={clientForm.instagramUsername}
+                        onChange={handleClientFormChange}
+                        aria-invalid={Boolean(clientValidation.instagramUsername)}
+                      />
+                      {clientValidation.instagramUsername && <span className="field-error">{clientValidation.instagramUsername}</span>}
                     </label>
                     <label>
                       מנהל סושיאל

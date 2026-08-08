@@ -142,6 +142,45 @@ class ValidationIntegrationTests {
     }
 
     @Test
+    void validLocalIsraeliPhoneIsAccepted() throws Exception {
+        mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content(clientJsonWithFields("0501234567", null)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.phone").value("0501234567"));
+    }
+
+    @Test
+    void internationalIsraeliPhoneIsNormalizedToLocalFormat() throws Exception {
+        mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content(clientJsonWithFields("+972-50-123-4567", "@social.otzar")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.phone").value("0501234567"))
+                .andExpect(jsonPath("$.instagramUsername").value("social.otzar"));
+    }
+
+    @Test
+    void invalidClientPhonesAreRejected() throws Exception {
+        for (String phone : new String[]{"050ABC4567", "050123", "050123456789", ""}) {
+            expectAdminFieldError(post("/clients"), clientJsonWithFields(phone, null), "phone");
+        }
+    }
+
+    @Test
+    void optionalInstagramUsernameMayBeNull() throws Exception {
+        mockMvc.perform(post("/clients").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content(clientJsonWithFields("0507654321", null)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.instagramUsername").doesNotExist());
+    }
+
+    @Test
+    void invalidInstagramUsernamesAreRejected() throws Exception {
+        for (String username : new String[]{"name with space", "@@social.otzar", "name!"}) {
+            expectAdminFieldError(post("/clients"), clientJsonWithFields("0507654321", username), "instagramUsername");
+        }
+    }
+
+    @Test
     void validContentCreationStillWorks() throws Exception {
         Client client = createClient(2L);
         mockMvc.perform(post("/contents").cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
@@ -197,7 +236,17 @@ class ValidationIntegrationTests {
     private String clientJson(String businessName, String email) {
         String suffix = UUID.randomUUID().toString();
         return "{\"businessName\":\"" + businessName + "\",\"fullName\":\"Client Name\",\"email\":\""
-                + email + "\",\"username\":\"user-" + suffix + "\",\"password\":\"password\"}";
+                + email + "\",\"username\":\"user-" + suffix
+                + "\",\"password\":\"password\",\"phone\":\"0501234567\"}";
+    }
+
+    private String clientJsonWithFields(String phone, String instagramUsername) {
+        String suffix = UUID.randomUUID().toString();
+        String instagram = instagramUsername == null ? "null" : "\"" + instagramUsername + "\"";
+        return "{\"businessName\":\"Validated Client\",\"fullName\":\"Client Name\",\"email\":\""
+                + suffix + "@example.com\",\"username\":\"user-" + suffix
+                + "\",\"password\":\"password\",\"phone\":\"" + phone
+                + "\",\"instagramUsername\":" + instagram + "}";
     }
 
     private String contentJson(Long clientId, String title) {

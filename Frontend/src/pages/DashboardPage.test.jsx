@@ -137,7 +137,7 @@ describe('Client archive management', () => {
   afterEach(() => { cleanup(); vi.clearAllMocks() })
 
   const activeClient = { client_id: 1, user_id: 10, business_name: 'Active Client', phone: '0501111111', archived: false }
-  const archivedClient = { client_id: 2, user_id: 20, business_name: 'Archived Client', phone: '0502222222', archived: true }
+  const archivedClient = { client_id: 2, user_id: 20, business_name: 'Archived Client', phone: '0502222222', instagramUsername: 'archived.social', archived: true }
 
   function mockArchiveApi() {
     let active = [activeClient]
@@ -183,6 +183,7 @@ describe('Client archive management', () => {
     expect(await screen.findByText('Archived Client')).toBeTruthy()
     expect(screen.queryByText('Active Client')).toBeNull()
     expect(screen.getByText('בארכיון')).toBeTruthy()
+    expect(screen.getByText('@archived.social')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'צפייה בתכנים' }))
     expect(screen.getByTestId('location').textContent).toBe('/content?clientId=2')
   })
@@ -220,6 +221,66 @@ describe('Client archive management', () => {
     const clientSelector = createForm.querySelector('select[name="clientId"]')
     expect(within(clientSelector).getByText('Active Client')).toBeTruthy()
     expect(within(clientSelector).queryByText('Archived Client')).toBeNull()
+  })
+})
+
+describe('Client form validation and Instagram username', () => {
+  afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+  function renderClientForm(client = { client_id: 1, business_name: 'Form Client', phone: '0501234567', instagramUsername: 'form.social' }) {
+    api.get.mockImplementation((url) => {
+      if (url === '/users/me') return Promise.resolve({ data: { role: 'ADMIN', id: 1 } })
+      if (url === '/clients') return Promise.resolve({ data: [client] })
+      return Promise.resolve({ data: [] })
+    })
+    api.post.mockResolvedValue({ data: {} })
+    return render(<MemoryRouter initialEntries={['/clients']}>
+      <DashboardPage activeRoute="clients" routes={{}} onNavigate={vi.fn()} isAuthenticated onLogout={vi.fn()} />
+    </MemoryRouter>)
+  }
+
+  it('renders Instagram in display/edit and omits the line when missing', async () => {
+    const { unmount } = renderClientForm()
+    expect(await screen.findByText('@form.social')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'עריכה' }))
+    expect(screen.getByDisplayValue('form.social')).toBeTruthy()
+    unmount()
+
+    renderClientForm({ client_id: 2, business_name: 'No Instagram', phone: '0507654321' })
+    await screen.findByText('No Instagram')
+    expect(document.querySelector('.instagram-username')).toBeNull()
+  })
+
+  it('shows clear validation messages and does not submit invalid fields', async () => {
+    const { container } = renderClientForm()
+    await screen.findByText('Form Client')
+    fireEvent.click(screen.getByRole('button', { name: 'יצירת לקוח חדש' }))
+    const form = container.querySelector('.creation-modal-dialog form')
+    for (const [name, value] of Object.entries({
+      businessName: 'New Client', email: 'new@example.com', username: 'new-user', password: 'password',
+      phone: '05ABC', instagramUsername: 'bad username',
+    })) fireEvent.change(form.elements[name], { target: { name, value } })
+    fireEvent.submit(form)
+
+    expect(screen.getByText('יש להזין מספר טלפון ישראלי תקין')).toBeTruthy()
+    expect(screen.getByText('יש להזין שם משתמש Instagram תקין')).toBeTruthy()
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('submits normalized phone and optional Instagram username', async () => {
+    const { container } = renderClientForm()
+    await screen.findByText('Form Client')
+    fireEvent.click(screen.getByRole('button', { name: 'יצירת לקוח חדש' }))
+    const form = container.querySelector('.creation-modal-dialog form')
+    for (const [name, value] of Object.entries({
+      businessName: 'New Client', email: 'new@example.com', username: 'new-user', password: 'password',
+      phone: '+972 50-123-4567', instagramUsername: '@new.social',
+    })) fireEvent.change(form.elements[name], { target: { name, value } })
+    fireEvent.submit(form)
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/clients', expect.objectContaining({
+      phone: '0501234567', instagramUsername: 'new.social',
+    })))
   })
 })
 
