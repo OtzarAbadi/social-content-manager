@@ -126,7 +126,7 @@ function App() {
       } else if (isAuthenticated && requestedRoute === 'login') {
         navigate(routes.dashboard.path, { replace: true })
         setActiveRoute('dashboard')
-      } else if (requestedRoute === 'integrations' && currentRole !== 'ADMIN') {
+      } else if (['integrations', 'messages'].includes(requestedRoute) && currentRole !== 'ADMIN') {
         navigate(routes.dashboard.path, { replace: true })
         setActiveRoute('dashboard')
       } else {
@@ -136,7 +136,7 @@ function App() {
   }, [isAuthResolved, isAuthenticated, currentRole, location.pathname, location.search, navigate])
 
   function navigateTo(routeKey) {
-    const allowedRoute = routeKey === 'integrations' && currentRole !== 'ADMIN' ? 'dashboard' : routeKey
+    const allowedRoute = ['integrations', 'messages'].includes(routeKey) && currentRole !== 'ADMIN' ? 'dashboard' : routeKey
     navigate(routes[allowedRoute].path)
     setActiveRoute(allowedRoute)
   }

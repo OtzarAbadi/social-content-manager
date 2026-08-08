@@ -69,9 +69,11 @@ describe('PageShell mobile navigation', () => {
 
     await within(navigation).findByText('התראות')
     expect(within(navigation).queryByText('לקוחות')).toBeNull()
+    expect(within(navigation).queryByText('הודעות')).toBeNull()
     expect(within(navigation).getByText('אנליטיקה')).toBeTruthy()
     expect(within(navigation).queryByText('אינטגרציות')).toBeNull()
     expect(within(screen.getByRole('complementary', { name: 'ניווט ראשי' })).queryByText('אינטגרציות')).toBeNull()
+    expect(within(screen.getByRole('complementary', { name: 'ניווט ראשי' })).queryByText('הודעות')).toBeNull()
     expect(within(navigation).getByText('התראות')).toBeTruthy()
     expect(within(navigation).getByText('פעילות')).toBeTruthy()
     expect(within(navigation).getByText('פיד')).toBeTruthy()

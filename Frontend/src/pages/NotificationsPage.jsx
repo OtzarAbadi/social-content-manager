@@ -26,6 +26,10 @@ function formatDate(value) {
     : date.toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
 }
 
+function getNotificationTypeLabel(type) {
+  return type === 'CONTENT_APPROVED' ? 'התוכן אושר' : type
+}
+
 function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, onLogout }) {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
@@ -138,7 +142,7 @@ function NotificationsPage({ activeRoute, routes, onNavigate, isAuthenticated, o
             <div className="notifications-page-copy">
               <div className="notifications-page-item-heading">
                 <div>
-                  {notification.type && <span className="notifications-page-type">{notification.type}</span>}
+                  {notification.type && <span className="notifications-page-type">{getNotificationTypeLabel(notification.type)}</span>}
                   <h3>{notification.title || 'התראה'}</h3>
                 </div>
                 <span className="notifications-page-read-state">{unread ? 'לא נקראה' : 'נקראה'}</span>
